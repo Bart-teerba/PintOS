@@ -236,7 +236,6 @@ For example, we have H, M, L which are three threads with decreasing priority an
 
 We considered keeping track of tid of the owners of the lock which each thread wants to acquire. However, we can hardly keep track of the places where use the lock. We also considered applying a max heap data structure to the ready_list. However, we decided to follow the current linked list data structure to decrease the difficulty of implementation while the runtime won't change much. As we designed the donation logic heavily based on the given code and logic, it would be easy to extend our design to accomodate additional features.
 
-
 ## Task 3: Multi-level Feedback Queue Scheduler (MLFQS)
 
 ### 1. Data structures and functions
@@ -267,7 +266,7 @@ init_thread (struct thread *t, const char *name, int priority)
 }
 
 
-/* implement empty function */
+/* implement empty function, simple grab or update*/
 void thread_set_nice (int nice UNUSED) {}
 int thread_get_nice (void) {}
 int thread_get_load_avg (void) {}
@@ -276,65 +275,70 @@ int thread_get_recent_cpu (void) {}
 
 /*modify existing function */
 void thread_set_priority (int new_priority) {
-    ...
-} // want to check thread_mlfqs bool 
+    ... // want to check thread_mlfqs bool
+}  
+void init_thread (struct thread *t, const char *name, int priority)
+{
+    ... // want to check thread_mlfqs flag, if true, ignore priority
+}
+void thread_tick (void) {
+    ... // add time tick check and calls to mlfqs-related funcs to update load_avg, recent_cpu and priority
+}
 
 
 /* add new functions */
 void increase_recent_cpu_by1(void){} // Each time a timer interrupt occurs, recent_cpu is incremented by 1 for running thread, i.e. thread_current(), unless the idle thread is running.
 void refresh_load_avg(void){} // using formula, just a global variable update
-void refresh_recent_cpu(void){} // update recent cpu for all threads
-void update_priority_MLFQS(void) {struct thread *t} 
+void refresh_recent_cpu(struct thread *t){} // update recent cpu for a thread
+void refresh_priority_MLFQS(struct thread *t) {} //update priority for a thread
 ```
 
-**timer.c**
+
+
+**thread.h**
 
 ```c
-/*modify existing function */
-static void timer_interrupt (struct intr_frame *args UNUSED){} // add time tick check and calls to mlfqs-related funcs 
+#define NICE_MAX 20
+#define NICE_MIN -20
+#define NICE_DEFAUT 0
+
+/* Add variables. */
+struct thread { ...
+    int nice;                       
+    int recent_cpu;             
+    ...
+};
 ```
 
 
 
 ### 2. Algorithms
 
-This is where you tell us how your code will work. Your description should be at a level below the high level description of requirements given in the assignment. We have read the project spec too, so it is unnecessary to repeat or rephrase what is stated here. On the other hand, your description should be at a level above the code itself. Don’t give a line-by-line run-down of what code you plan to write. Instead, you should try to convince us that your design satisﬁes all the requirements, including any uncommon edge cases.
-
-The length of this section depends on the complexity of the task and the complexity of your design. Simple explanations are preferred, but if your explanation is vague or does not provide enough details, you will be penalized. Here are some tips:
 
 
+- We use the boolean variable `thread_mlfqs` to check whether we should use MLFQS related functions to update priority, and also prevent `thread_set_priority`, and no priority donation is done. If true, we also ignore the `priority` argument in `init_thread()`
+- In `thread_tick()`, we first check whether `thread_mlfqs` flag is true. Since we are going to synchronize thread states,  we disable interrupts and call `increase_recent_cpu_by1`. Then we start check time ticks and iterate through all the thread elements in the `all_list`. if `ticks % TIMER_FREQ == 0`, i.e. multiple of a second, we call `refresh_load_avg` and `refresh_recent_cpu` to update `load_avg` and threads' recent cpu. If `ticks % 4 == 0`, we recalculate the priority of all threads.
+- To achieve brevity, we here don't use a multi-level of priority queues. Since we are updating the priority of each thread for certain ticks, we can simply use the same `next_thread_to_run` implementation to choose which thread to run next. Similarly, all the other functions should generally work the same.
+- Calculate load average and recent cpu: Since these two variables require float point operation, we easily use the functions in `fixed-point.h`. That's also why we initialize `recent_cpu` to be `FP_CONST(0)`.
+- Implement `increase_recent_cpu_by1()`: This is called for the current thread, as required by doc, by the function `thread_tick` inside `thread.c` after checking current thread is not idle. 
+- Implement `refresh_load_avg()`: This is simply global variable update using some float point operation. `ready_threads` can be easily computed by calling `list_size (&ready_list)`.
+- Implement `refresh_recent_cpu()`: To avoid overflow, we first compute _(2 × load_avg)/(2 × load_avg + 1)_, then do the multiplication 
+- Round Robin Implementation: This is simply done by the FIFO queue implementation we have. For example, if A, B, C are all on the waiting queue having the same highest priority, after A gets removed from waiting queue, even if it gets enqueued again with same highest priority, if will be after C, so the queue becomes: B, C, A...
 
 
 
 ### 3. Synchronization
 
-Describe your strategy for preventing race conditions and convince us that it works in all cases. Here are some tips for writing this section:
-
-• This section should be structured as a list of all potential concurrent accesses to shared resources. For each case, you should prove that your synchronization design ensures correct behavior.
-
-• An operating system kernel is a complex, multithreaded program, in which synchronizing multiple threads can be diﬃcult. The best synchronization strategies are simple and easily veriﬁable, which leaves little room for mistakes. If your synchronization strategy is diﬃcult to explain, consider how you could simplify it.
-
-• You should also aim to make your synchronization as eﬃcient as possible, in terms of time and memory.
-
-• Synchronization issues revolve around shared data. A good strategy for reasoning about synchronization is to identify which pieces of data are accessed by multiple independent actors (whether they are threads or interrupt handlers). Then, prove that the shared data always remains consistent.
-
-• Lists are a common cause of synchronization issues. Lists in Pintos are not thread-safe.
-
-• Do not forget to consider memory deallocation as a synchronization issue. If you want to use pointers to struct thread, then you need to prove those threads can’t exit and be deallocated while you’re using them.
-
-• If you create new functions, you should consider whether the function could be called in 2 threads at the same time. If your function access any global or static variables, you need to show that there are no synchronization issues.
-
-• Interrupt handlers cannot acquire locks. If you need to access a synchronized variable from an interrupt handler, consider disabling interrupts.
-
-• Locks do not prevent a thread from being preempted. Threads can be interrupted during a critical section. Locks only guarantee that the critical section is only entered by one thread at a time.
+There is not much synchronization issue for task3 since thread is no longer able to manipulate priority, and all the priority calculation is done by CPU. The only shared data between threads, load_avg, also can only be changed by CPU.
 
 
 
 ### 4. Rationale
 
-Tell us why your design is better than the alternatives that you considered, or point out any shortcomings it may have. You should think about whether your design is easy to conceptualize, how much coding it will require, the time/space complexity of your algorithms, and how easy/diﬃcult it would be to extend your design to accommodate additional features.
-
-
+- We don't really choose to implement a real MLFQS for certain reasons. First, if we do, we'll need an array of 64 to hold 64 different linked lists for each priority. This is both memory and time inefficient. Second, this creates inconsistency with our previous implementation, and thus we need add extra code to do things like array initialization, array iteration and updates, etc.
+- It should be rather easy to extend our code, since most of the features in this part is controlled by the one `thread_mlfqs` boolean variable, we also avoid to add extra data structures, so it should be memory efficient.
+- As for amount of code, the most part of code should be about implementing `refresh_load_avg(void)`, `refresh_recent_cpu`, `refresh_priority_MLFQS(void)` and modifying `thread_tick()`
+- It makes sense to put the priority update inside `thread_tick()` since it's called directly by external time interrupt handler, so all the operations are done for each time tick. 
 
 ## Additional Questions
 
@@ -350,9 +354,9 @@ Tell us why your design is better than the alternatives that you considered, or 
 
 | timer ticks | R(A) | R(B) | R(C) | P(A) | P(B) | P(C) | thread to run |
 | ----------- | ---- | ---- | ---- | ---- | ---- | ---- | ------------- |
-| 0           |      |      |      |      |      |      |               |
-| 4           |      |      |      |      |      |      |               |
-| 8           |      |      |      |      |      |      |               |
+| 0           | 0    | 0    | 0    | 63   | 61   | 59   | A             |
+| 4           | 4    | 0    | 0    | 62   | 61   | 59   | A             |
+| 8           | 8    | 0    | 0    | 61   | 61   | 59   | B             |
 | 12          |      |      |      |      |      |      |               |
 | 16          |      |      |      |      |      |      |               |
 | 20          |      |      |      |      |      |      |               |
@@ -361,3 +365,6 @@ Tell us why your design is better than the alternatives that you considered, or 
 | 32          |      |      |      |      |      |      |               |
 | 36          |      |      |      |      |      |      |               |
 
+3. Did any ambiguities in the scheduler speciﬁcation make values in the table (in the previous question) uncertain? If so, what rule did you use to resolve them?
+
+It's not certain when multiple threads all have the same highest priority, which thread should be dequeued first. To resolve this problem, "Round Robin" is used, and the threads with same highest priority are cycled through to kind of ensure "fairness".
