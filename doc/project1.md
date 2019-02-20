@@ -18,15 +18,11 @@ Write down any struct deﬁnitions, global (or static) variables, typedefs, or e
 
 
 
-###2. Algorithms
+### 2. Algorithms
 
 This is where you tell us how your code will work. Your description should be at a level below the high level description of requirements given in the assignment. We have read the project spec too, so it is unnecessary to repeat or rephrase what is stated here. On the other hand, your description should be at a level above the code itself. Don’t give a line-by-line run-down of what code you plan to write. Instead, you should try to convince us that your design satisﬁes all the requirements, including any uncommon edge cases.
 
 The length of this section depends on the complexity of the task and the complexity of your design. Simple explanations are preferred, but if your explanation is vague or does not provide enough details, you will be penalized. Here are some tips:
-
-
-
-
 
 ### 3. Synchronization
 
