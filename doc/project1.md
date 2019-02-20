@@ -182,13 +182,15 @@ bool cond_sema_priority_less (const struct list_elem *e1, const struct list_elem
 
 ### 2. Algorithms
 
-###### Section 1 -- Choosing the next thread to run:
+
+#### Section 1 -- Choosing the next thread to run:
 
 To handle the priority issues, we want to change the ``` ready_list ``` into a priority queue keep the threads sorted from threads with high ``` priority_effective ``` to those with low ones. Every time we choose the next thread to run, we need to pop from the front of the ``` ready_list ```. <br />
 Throughout the whole process of thread, whenever there is a insert into ``` ready_list ```, we have to make sure that we are using ``` list_insert_sorted ``` with method ``` thread_priority_less ``` as argument. <br />
 Meanwhile, after we add a thread into ``` ready_list ```, we have to immediately redecide which thread to run by calling ``` thread_yield ```.
 
-###### Section 2 -- Acquiring a lock:
+
+#### Section 2 -- Acquiring a lock:
 
 In ``` lock_acquire ```, we consider two situations. <br />
 The first situation is when ``` lock->holder ``` is ``` NULL ```. In this case, we directly ``` sema_down ``` the lock. <br />
@@ -196,26 +198,29 @@ The second situation is when ``` lock->holder ``` is another thread. In this cas
 After we update all the locks, we sema_down the lock. After getting current_thread, we should clear the ``` lock_waiting ``` variable of this thread and set lock's ``` priority_max ``` as the ``` priority_effective ``` of this thread. Finally, we let the thread get lock by calling ``` thread_hold_the_lock ```. 
 
 
-###### Section 3 -- Releasing a lock:
+#### Section 3 -- Releasing a lock:
 
 In ``` lock_release ```, we first have to remove the lock in the lock list of the corresponding thread by calling ``` thread_remove_lock ```. Then we set the lock's holder to ``` NULL ```. Finally, we sema up this lock.
 
 In addition, we should release the lock when the owner thread exits.
 
 
-###### Section 4 -- Comuting the effective priority:
+#### Section 4 -- Comuting the effective priority:
 
 In ``` thread_update_priority ```, we set the ``` priority_effective ``` of a given thread to the max value among the ``` priority_ori ``` which represents the original setted priority value of the thread and ``` priority_max ``` of each lock that recorded in the thread's locks. The reason is that the largest ``` priority_max ``` among all locks in ``` locks ``` of a thread means the highest priority of all the threads which needs this lock. 
 
-###### Section 5 -- Priority Scheduling for semaphores and locks:
+
+#### Section 5 -- Priority Scheduling for semaphores and locks:
 
 Because lock is implemented by semaphore, we only need to implement priority scheduling of semaphore. To implement this, we just have to sort ``` &sema->waiters ``` in ``` sema_up ``` according to ``` cond_sema_priority_less ``` function, which compare the ``` priority_effective ``` of the corresponding thread of two semas. 
 
-###### Section 6 -- Priority Scheduling for condition variables:
+
+#### Section 6 -- Priority Scheduling for condition variables:
 
 It is similar to Section 5. We just have to sort ``` &cond->waiters ``` in ``` cond_signal ``` according to ``` cond_sema_priority_less ``` function, which compare the ``` priority_effective ``` of the corresponding thread of two conditional variables. 
 
-###### Section 7 -- Changing thread's priority:
+
+#### Section 7 -- Changing thread's priority:
 
 In ``` thread_set_priority ``` , we update the ``` priority_ori ``` as ``` new_pritority ``` and ensure the ``` priority_effective ``` variable of the thread is the max of ``` priority_ori ``` and itself. If ``` priority_effective ``` is changed, we should yield the current thread.
 
