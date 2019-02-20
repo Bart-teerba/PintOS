@@ -110,6 +110,57 @@ Tell us why your design is better than the alternatives that you considered, or 
 
 Write down any struct deﬁnitions, global (or static) variables, typedefs, or enumerations that you will be adding or modifying (if it already exists). These deﬁnitions should be written with the C programming language, not with pseudocode. Include a brief explanation the purpose of each modiﬁcation. Your explanations should be as concise as possible. Leave the full explanation to the following sections.
 
+**thread.c**
+
+```c
+/* add global variable */
+int load_avg;
+
+/* add variable in initialization */
+void thread_init (void)
+{
+    ...
+    initial_thread->nice = 0;    
+    initial_thread->recent_cpu = FP_CONST(0)
+    ...    
+}
+static void
+init_thread (struct thread *t, const char *name, int priority)
+{	
+    ...
+    t->nice = 0
+    t->recent_cpu = FP_CONST(0)
+    ...
+}
+
+
+/* implement empty function */
+void thread_set_nice (int nice UNUSED) {}
+int thread_get_nice (void) {}
+int thread_get_load_avg (void) {}
+int thread_get_recent_cpu (void) {}   
+
+
+/*modify existing function */
+void thread_set_priority (int new_priority) {
+    ...
+} // want to check thread_mlfqs bool 
+
+
+/* add new functions */
+void increase_recent_cpu_by1(void){} // Each time a timer interrupt occurs, recent_cpu is incremented by 1 for running thread, i.e. thread_current(), unless the idle thread is running.
+void refresh_load_avg(void){} // using formula, just a global variable update
+void refresh_recent_cpu(void){} // update recent cpu for all threads
+void update_priority_MLFQS(void) {struct thread *t} 
+```
+
+**timer.c**
+
+```c
+/*modify existing function */
+static void timer_interrupt (struct intr_frame *args UNUSED){} // add time tick check and calls to mlfqs-related funcs 
+```
+
 
 
 ### 2. Algorithms
