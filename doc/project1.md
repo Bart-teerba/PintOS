@@ -137,7 +137,7 @@ bool cond_sema_priority_less (const struct list_elem *e1, const struct list_elem
 
 Change all the ``` list_push_back ``` into ``` list_insert_ordered ``` with ``` thread_priority_less ``` function. There are three methods which involve this amendment: ``` thread_unblock ```, ``` thread_yield ```, ``` init_thread ```.
 
-We have to change ``` thread_set_priority ``` funciton. Here, we have to update the ``` priority_ori ``` as ``` new_pritority ``` and ensure the ``` priority_effective ``` variable of the thread is the max of ``` priority_ori ``` and itself. If ``` priority_effective ``` is changed, we should yield the current thread.
+We have to change ``` thread_set_priority ``` function. Here, we have to update the ``` priority_ori ``` as ``` new_pritority ``` and ensure the ``` priority_effective ``` variable of the thread is the max of ``` priority_ori ``` and itself. If ``` priority_effective ``` is changed, we should yield the current thread.
 
 In ``` init_thread ```, we have to consider the new variable added to thread including: ``` priority_ori ```, ``` locks ```, ``` waiting_lock ```. 
 
@@ -182,35 +182,48 @@ bool cond_sema_priority_less (const struct list_elem *e1, const struct list_elem
 
 ### 2. Algorithms
 
-This is where you tell us how your code will work. Your description should be at a level below the high level description of requirements given in the assignment. We have read the project spec too, so it is unnecessary to repeat or rephrase what is stated here. On the other hand, your description should be at a level above the code itself. Don’t give a line-by-line run-down of what code you plan to write. Instead, you should try to convince us that your design satisﬁes all the requirements, including any uncommon edge cases.
+###### Section 1 -- Choosing the next thread to run:
 
-The length of this section depends on the complexity of the task and the complexity of your design. Simple explanations are preferred, but if your explanation is vague or does not provide enough details, you will be penalized. Here are some tips:
+To handle the priority issues, we want to change the ``` ready_list ``` into a priority queue keep the threads sorted from threads with high ``` priority_effective ``` to those with low ones. Every time we choose the next thread to run, we need to pop from the front of the ``` ready_list ```. <br />
+Throughout the whole process of thread, whenever there is a insert into ``` ready_list ```, we have to make sure that we are using ``` list_insert_sorted ``` with method ``` thread_priority_less ``` as argument. <br />
+Meanwhile, after we add a thread into ``` ready_list ```, we have to immediately redecide which thread to run by calling ``` thread_yield ```.
+
+###### Section 2 -- Acquiring a lock:
+
+In ``` lock_acquire ```, we consider two situations. <br />
+The first situation is when ``` lock->holder ``` is ``` NULL ```. In this case, we directly ``` sema_down ``` the lock. <br />
+The second situation is when ``` lock->holder ``` is another thread. In this case, we point the ``` waiting_lock ``` of this thread to the lock we have. After that, we have to handle the priority donation recursively. To decide continue recursing, we need to ensure that the ``` priority_effective ``` variable of current thread is strictly larger than the ``` priority_max ``` of the lock we have. In each recursion, we update ``` priority_max ``` according to the ``` priority_effective ``` of current thread and then donate priority to the holder of the lock. Then we access the ``` waiting_lock ``` of the lock's holder. <br />
+After we update all the locks, we sema_down the lock. After getting current_thread, we should clear the ``` lock_waiting ``` variable of this thread and set lock's ``` priority_max ``` as the ``` priority_effective ``` of this thread. Finally, we let the thread get lock by calling ``` thread_hold_the_lock ```. 
 
 
+###### Section 3 -- Releasing a lock:
 
+In ``` lock_release ```, we first have to remove the lock in the lock list of the corresponding thread by calling ``` thread_remove_lock ```. Then we set the lock's holder to ``` NULL ```. Finally, we sema up this lock.
+
+In addition, we should release the lock when the owner thread exits.
+
+
+###### Section 4 -- Comuting the effective priority:
+
+In ``` thread_update_priority ```, we set the ``` priority_effective ``` of a given thread to the max value among the ``` priority_ori ``` which represents the original setted priority value of the thread and ``` priority_max ``` of each lock that recorded in the thread's locks. The reason is that the largest ``` priority_max ``` among all locks in ``` locks ``` of a thread means the highest priority of all the threads which needs this lock. 
+
+###### Section 5 -- Priority Scheduling for semaphores and locks:
+
+Because lock is implemented by semaphore, we only need to implement priority scheduling of semaphore. To implement this, we just have to sort ``` &sema->waiters ``` in ``` sema_up ``` according to ``` cond_sema_priority_less ``` function, which compare the ``` priority_effective ``` of the corresponding thread of two semas. 
+
+###### Section 6 -- Priority Scheduling for condition variables:
+
+It is similar to Section 5. We just have to sort ``` &cond->waiters ``` in ``` cond_signal ``` according to ``` cond_sema_priority_less ``` function, which compare the ``` priority_effective ``` of the corresponding thread of two conditional variables. 
+
+###### Section 7 -- Changing thread's priority:
+
+In ``` thread_set_priority ``` , we update the ``` priority_ori ``` as ``` new_pritority ``` and ensure the ``` priority_effective ``` variable of the thread is the max of ``` priority_ori ``` and itself. If ``` priority_effective ``` is changed, we should yield the current thread.
 
 
 ### 3. Synchronization
 
-Describe your strategy for preventing race conditions and convince us that it works in all cases. Here are some tips for writing this section:
-
-• This section should be structured as a list of all potential concurrent accesses to shared resources. For each case, you should prove that your synchronization design ensures correct behavior.
-
-• An operating system kernel is a complex, multithreaded program, in which synchronizing multiple threads can be diﬃcult. The best synchronization strategies are simple and easily veriﬁable, which leaves little room for mistakes. If your synchronization strategy is diﬃcult to explain, consider how you could simplify it.
-
-• You should also aim to make your synchronization as eﬃcient as possible, in terms of time and memory.
-
-• Synchronization issues revolve around shared data. A good strategy for reasoning about synchronization is to identify which pieces of data are accessed by multiple independent actors (whether they are threads or interrupt handlers). Then, prove that the shared data always remains consistent.
-
-• Lists are a common cause of synchronization issues. Lists in Pintos are not thread-safe.
-
-• Do not forget to consider memory deallocation as a synchronization issue. If you want to use pointers to struct thread, then you need to prove those threads can’t exit and be deallocated while you’re using them.
-
-• If you create new functions, you should consider whether the function could be called in 2 threads at the same time. If your function access any global or static variables, you need to show that there are no synchronization issues.
-
-• Interrupt handlers cannot acquire locks. If you need to access a synchronized variable from an interrupt handler, consider disabling interrupts.
-
-• Locks do not prevent a thread from being preempted. Threads can be interrupted during a critical section. Locks only guarantee that the critical section is only entered by one thread at a time.
+Because we implement priority donation of a thread through the ``` priority_max ``` in its lock, we can always get the maximum priority of all threads which need that lock, no matter in which order the threads acquire the lock, we can always get the right ``` priority_effective ``` of our target thread. <dr />
+For example, we have H, M, L which are three threads with decreasing priority and H acquires a lock in L while M also acquires a lock in L. Whenever we call ``` lock_acquire ``` method, we get the maximum of current thread's ``` priority_effective ``` and lock's ``` priority_max ```. Thus, after both H and M donate priority to L, whatever order they are, we can have L with H's ``` priority_effective ```. 
 
 
 
