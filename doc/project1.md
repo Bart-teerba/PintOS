@@ -54,8 +54,8 @@ static void init_thread (struct thread *t, const char *name, int priority) {
 
 
 #### 2. Algorithms
- - `time_sleep()`: Every time `timer_sleep()` gets called in a thread, it places itself on the list with the tick number which indicates when it's supposed to wake up (current time + sleep time). Then it calls `thread_block()` to put itself to sleep, change status to `THREAD_BLOCKED`, and call `thread_yield()` context switch to the scheduler. Notice that `sleep_list` is sorted by wakeTick from low to high.
- - `timer_interrupt()`: `timer_interrupt()` is a function that gets called every time stamp and increments our tick count. So every time we call `time_interrupt()`, we would check from the beginning of `sleep_list` if we should wake up any threads. If so, we call `thread_unblock()` on the corresponding thread so that it goes the `ready_list` and changes tis status to `THREAD_READY`. We keep doing this until the beginning thread of `sleep_list` has a wakeTick larger than current tick or it is empty.
+ - `time_sleep()`: Calculate the value of current + sleep to save as `until` that represents when the current thread will wake up. Then place the current thread to `sleep_list`. Call `thread_block()` to put itself to sleep, which changes the thread status to "THREAD_BLOCKED". Switch the context to the scheduler by calling `thread_yield()`. 
+ - `timer_interrupt()`: this function pops a new thread in the `sleep_list` and increment the current time tick. In each call, it wakes the front of the `sleep_list`, if a thread's wakeup time is earlier than current time. In this case, we call `thread_unblock()` on the corresponding thread so it goes to `ready_list` and changes status to `THREAD_READY`. We keep doing this until the beginning thread of `sleep_list` has a wakeTick larger than current tick or it is empty.
 
 
 #### 3. Synchronization
