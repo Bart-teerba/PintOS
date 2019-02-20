@@ -76,7 +76,107 @@ This plan makes sure that there's always only one thread being added to the `sle
 
 ### 1. Data structures and functions
 
-Write down any struct deﬁnitions, global (or static) variables, typedefs, or enumerations that you will be adding or modifying (if it already exists). These deﬁnitions should be written with the C programming language, not with pseudocode. Include a brief explanation the purpose of each modiﬁcation. Your explanations should be as concise as possible. Leave the full explanation to the following sections.
+We redefine the original ``` priority ``` variable in thread as ``` priority_effective ```.
+
+*In thread.h*
+
+Add a lock pointer ``` waiting_lock ``` which keeps track of a lock which is acquired by the thread. <br />
+Add a list ``` locks ``` which stores all the needed locks. <br />
+Add a integer ``` priority_ori ``` which stores the original priority of the thread. This should not be influenced by donation and it can only be changed when init and set priority. <br />
+Add a function ``` thread_get_lock ``` which takes in a lock pointer.<br />
+Add a function ``` thread_rm_lock ``` which takes in a lock pointer.<br />
+Add a function ``` thread_donate_priority ``` which takes in a thread pointer.<br />
+Add a function ``` thread_update_priority ``` which takes in a thread pointer.<br />
+Add a function ``` thread_priority_less ``` which is fed into ``` list_insert_ordered ``` funciton of list. <br />
+
+```c
+/* Add three new variables in thread. */
+struct thread
+{
+  struct lock *waiting_lock;          /* a lock acuired by the thread. */
+  struct list locks;                  /* stores all the needed locks */
+  int pritority_ori;                  /* stores the original priority of the thread */
+  ...
+}
+
+void thread_get_lock (struct lock *);
+void thread_rm_lock (struct lock *);
+void thread_donate_priority (struct thread *);
+void thread_update_priority (struct thread *);
+bool priority_less(const struct list_elem *e1, const struct list_elem *e2, void *aux);
+```
+
+
+*In sync.h*
+
+in struct lock, we add two variables:
+
+``` struct list_elem elem ```, which makes it posible to store lock in a list.<br />
+``` int priority_max ```, which keeps track of the highest priority of the current lock. <br />
+
+We also have to add two funcitons which are served as argument of ``` list_insert_ordered ``` function:
+
+``` lock_priority_less ``` and ``` cond_sema_priority_less ```, both of which take in two ``` list_elem ``` and ``` aux ```.
+
+```c
+/* Add two variables in struct lock. */
+struct lock
+  {
+    struct list_elem elem;          /* elem to store in list */
+    int max_priority;               /* highest priority of threads which needs this lock */
+  };
+  
+/* Add two less functions */
+bool lock_priority_less (const struct list_elem *e1, const struct list_elem *e2, void *aux);
+bool cond_sema_priority_less (const struct list_elem *e1, const struct list_elem *e2, void *aux);
+```
+
+
+
+*In thread.c*
+
+Change all the ``` list_push_back ``` into ``` list_insert_ordered ``` with ``` thread_priority_less ``` function. There are three methods which involve this amendment: ``` thread_unblock ```, ``` thread_yield ```, ``` init_thread ```.
+
+We have to change ``` thread_set_priority ``` funciton. Here, we have to update the ``` priority_ori ``` as ``` new_pritority ``` and ensure the ``` priority_effective ``` variable of the thread is the max of ``` priority_ori ``` and itself. If ``` priority_effective ``` is changed, we should yield the current thread.
+
+In ``` init_thread ```, we have to consider the new variable added to thread including: ``` priority_ori ```, ``` locks ```, ``` waiting_lock ```. 
+
+Add a function ``` thread_get_lock ``` which takes in a lock pointer. It inserts a lock into thread's ``` locks ``` list. At the same time, update thread's priority if possible.
+
+Add a function ``` thread_rm_lock ``` which takes in a lock pointer. It removes a lock from thread's ``` locks ``` list. At the same time, update thread's priority if possible.
+
+Add a function ``` thread_donate_priority ``` which takes in a thread pointer. It should call ``` thread_update_priority ``` to update the thread's priority. After calling ``` thread_update_priority ```, we should consider the case that the thread's priority has been changed and we should update its position in ``` ready_list ```.
+
+Add a function ``` thread_update_priority ``` which takes in a thread pointer. We update thread's priority as the max of the largest priority of its ``` locks ``` and it's ``` priority_effective ```. We should not consider the old ``` priority_effective ``` value since we might call this function after we remove a lock which might cause the ``` priority_effective ``` to decrease. 
+
+Add a function ``` thread_priority_less ``` which is fed into ``` list_insert_ordered ``` funciton of list.
+
+```c
+void thread_get_lock (struct lock *){...};
+void thread_rm_lock (struct lock *){...};
+void thread_donate_priority (struct thread *){...};
+void thread_update_priority (struct thread *){...};
+bool priority_less(const struct list_elem *e1, const struct list_elem *e2, void *aux){...};
+```
+
+
+*In sync.c* 
+
+In ``` sema_up ```, we have to sort ``` &sema->waiters ```.
+
+In ``` lock_acquire ```, which has to handle recursive donation. We designed to store ``` priority_max ``` in lock and then update threads' ``` priority_effective ``` according to ``` priority_max ``` of locks it has. In ``` lock_acquire ```, we should update ``` priority_max ``` according to the ``` priority_effective ``` of current thread. Use recursion to visit ``` waiting_lock ``` of all layers of threads. After we update all the locks, we sema_down the lock. After getting current_thread, we should clear the ``` lock_waiting ``` variable of this thread and set lock's ``` priority_max ``` as the ``` priority_effective ``` of this thread. Finally, we let the thread get lock by calling ``` thread_hold_the_lock ```. 
+
+In ``` lock_release ```, which has to add a part to remove the lock in the lock list of the corresponding thread by calling ``` thread_remove_lock ```. 
+
+In ``` cond_signal ```, we have to sort ``` &cond->waiters ``` by ``` cond_sema_priority_less ```.
+
+We create two functions ``` lock_priority_less ``` and ``` cond_sema_priority_less ``` which should compare ``` priority_max ``` of two locks and ``` priority_effective ``` of threads corresponding to semaphores or condition variables. 
+
+```c
+bool lock_priority_less (const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED){...};
+bool cond_sema_priority_less (const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED){...};
+```
+
 
 
 
