@@ -229,8 +229,7 @@ For example, we have H, M, L which are three threads with decreasing priority an
 
 ### 4. Rationale
 
-Tell us why your design is better than the alternatives that you considered, or point out any shortcomings it may have. You should think about whether your design is easy to conceptualize, how much coding it will require, the time/space complexity of your algorithms, and how easy/diﬃcult it would be to extend your design to accommodate additional features.
-
+We considered keeping track of tid of the owners of the lock which each thread wants to acquire. However, we can hardly keep track of the places where use the lock. We also considered applying a max heap data structure to the ready_list. However, we decided to follow the current linked list data structure to decrease the difficulty of implementation while the runtime won't change much. As we designed the donation logic heavily based on the given code and logic, it would be easy to extend our design to accomodate additional features.
 
 
 ## Task 3: Multi-level Feedback Queue Scheduler (MLFQS)
