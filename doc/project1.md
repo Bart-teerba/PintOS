@@ -516,9 +516,9 @@ Suppose we have four threads: ``` Thread A ```, ``` Thread B ```, ``` Thread C `
 | Thread C    | 3             | 3                  |
 | Thread D    | 4             | 4                  |
 
- - If we have ``` sema_up ``` with correct logic, we should unblock ``` Thread B ``` when releasing the lock in A at *BP_2* because ``` Thread B ``` has a higher effective priority *(4)* than ``` Thread C ``` (3). Thus, the correct order should be **"ABDC"**.
+ - If we have ``` sema_up ``` with correct logic, we should unblock ``` Thread B ``` when releasing the lock in A at *BP_2* because ``` Thread B ``` has a higher effective priority *(4)* than ``` Thread C ``` *(3)*. Thus, the correct order should be **"ABDC"**.
 
- - However, if we use the current ``` sema_up ``` which compares base priorities, we actually unlock ``` Thread C ``` because ``` Thread C ``` has a higher base priority *(3)* than ``` Thread B ``` (2). Thus, the current order is **"ACBD"**, which is not correct.
+ - However, if we use the current ``` sema_up ``` which compares base priorities, we actually unlock ``` Thread C ``` because ``` Thread C ``` has a higher base priority *(3)* than ``` Thread B ``` *(2)*. Thus, the current order is **"ACBD"**, which is not correct.
 
 <br />
 <br />
