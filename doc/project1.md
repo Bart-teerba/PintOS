@@ -357,13 +357,13 @@ There is not much synchronization issue for task3 since thread is no longer able
 | 0           | 0    | 0    | 0    | 63   | 61   | 59   | A             |
 | 4           | 4    | 0    | 0    | 62   | 61   | 59   | A             |
 | 8           | 8    | 0    | 0    | 61   | 61   | 59   | B             |
-| 12          |      |      |      |      |      |      |               |
-| 16          |      |      |      |      |      |      |               |
-| 20          |      |      |      |      |      |      |               |
-| 24          |      |      |      |      |      |      |               |
-| 28          |      |      |      |      |      |      |               |
-| 32          |      |      |      |      |      |      |               |
-| 36          |      |      |      |      |      |      |               |
+| 12          | 8    | 4    | 0    | 61   | 60   | 59   | A             |
+| 16          | 12   | 4    | 0    | 60   | 60   | 59   | B             |
+| 20          | 12   | 8    | 0    | 60   | 59   | 59   | A             |
+| 24          | 16   | 8    | 0    | 59   | 59   | 59   | C             |
+| 28          | 16   | 8    | 4    | 59   | 59   | 58   | B             |
+| 32          | 16   | 12   | 4    | 59   | 58   | 58   | A             |
+| 36          | 20   | 12   | 4    | 58   | 58   | 58   | C             |
 
 3. Did any ambiguities in the scheduler speciﬁcation make values in the table (in the previous question) uncertain? If so, what rule did you use to resolve them?
 
