@@ -8,49 +8,43 @@ Design Document for Project 1: Threads
 * Jerry Li <jerry.li.cr@berkeley.edu>
 * Bart Ba <bart98@berkeley.edu>
 
-
+<br />
+<br />
+<br />
+<br />
 
 ## Task 1: Eﬃcient Alarm Clock
 
-#### 1. Data Structures and functions
+<br />
 
-**timer.h**
-
-```c
-/* Addition */
-/* List of sleeping threads */
-static struct list sleep_list;
-
-/* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
-bool sleeper_comparator(const struct thread *thread1, const struct thread *thread2, void *aux UNUSED);
-```
+### 1. Data Structures and functions
 
 **timer.c**
 
 ```c
-/* Addition */
-/* List of sleeping threads */
-static struct list sleep_list;
-
-/* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
-bool sleeper_comparator(const struct thread *thread1, const struct thread *thread2, void *aux UNUSED){...};
-```
-
-```c
 /* Modification based on the original code */
-void timer_init(void){...};                                         /* Initialize a sleep_list */
+void timer_sleep (int64_t ts){
+  ...
+  current_thread->wake_tick = ts + ticks;                           /* set wake_tick */
+  thread_block();                                                   /* block current thread */
+  ...
+};
 
-void timer_sleep (int64_t ticks){...};                              /* Modify timer */
-static void timer_interrupt (struct intr_frame *args UNUSED){...};  /* Modify timer_interrupt to make operations atomic */
+static void timer_interrupt (struct intr_frame *args UNUSED){...};  /* Modify timer_interrupt to make operations atomic, evoke unblock_check using thread_sleep_foreach */
 ```
 
 **thread.h**
 
 ```c
+/* Addition */
+void unblock_check (struct thread *t, void *aux UNUSED);        /* func for thread_sleep_foreach */
+void thread_sleep_foreach (thread_action_func *, void *);       /* apply func for all threads in sleep_list */
+
 /* Modification */
 struct thread {
 	...
-	int wake_tick;        /* Amount of time before wake */
+	int64_t wake_tick;        /* Amount of time before wake */
+	struct list_elem sleep_elem  /* list element for the sleeping list. */
 	...
 }
 ```
@@ -59,26 +53,60 @@ struct thread {
 **thread.c**
 
 ```c
+/* Addition */
+/* List of sleeping threads */
+static struct list sleep_list;
+
+/* apply func for all threads in sleep_list */
+void thread_sleep_foreach (thread_action_func *, void *){...}
+
+/* Modification */
 static void init_thread (struct thread *t, const char *name, int priority) {
 	...
-	t->wake_tick = -1;    /* initialize wake_tick */
+	t->wake_tick = -1;    /* initialize wake_tick of each thread */
 	...
 }
+
+/* initialize current_tick and sleep_list */
+thread_init (void) {
+  ...
+  list_init (&sleep_list);
+  ...
+}
+
+/* insert thread into sleep_list with thread_sleeper_more, because we want to put small element in the front */
+thread_block (void){...}
+
+/* pop thread from sleep_list */
+thread_unblock (void){...}
+
+/* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
+bool thread_sleeper_more(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED){...};
+
+/* func for thread_sleep_foreach, can call thread_unblock */
+void unblock_check (struct thread *t, void *aux);
 ```
 
+<br />
 
-#### 2. Algorithms
- - `time_sleep()`: Calculate the value of current + sleep to save as `until` that represents when the current thread will wake up. Then place the current thread to `sleep_list`. Call `thread_block()` to put itself to sleep, which changes the thread status to "THREAD_BLOCKED". Switch the context to the scheduler by calling `thread_yield()`. 
+### 2. Algorithms
+ - `time_sleep()`: Calculate the value of (current tick + sleep tick) and save it as `wait_tick` of the current thread. It represents when the current thread will wake up. Call `thread_block()` to put itself to sleep, which changes the thread status to `THREAD_BLOCKED` and then place it to `sleep_list`.
  
- - `timer_interrupt()`: this function pops a new thread in the `sleep_list` and increment the current time tick. In each call, it wakes the front of the `sleep_list`, if a thread's wakeup time is earlier than current time. In this case, we call `thread_unblock()` on the corresponding thread so it goes to `ready_list` and changes status to `THREAD_READY`. We keep doing this until the beginning thread of `sleep_list` has a wakeTick larger than current tick or it is empty.
+ - `timer_interrupt()`: This function increments the current time tick. Then, it calls `thread_sleep_foreach`
+ 
+ - `thread_sleep_foreach()`: It go through all threads in `sleep_list`. For each thread from beginning, it wakes and pops it if its `wake_tick` is earlier than or the same as current time. In this case, we call `thread_unblock()` on the corresponding thread so it goes to `ready_list` and changes status to `THREAD_READY`. We keep doing this until the beginning thread of `sleep_list` has a `wake_tick` larger than current tick or `sleep_list` is empty.
 
+<br />
 
-#### 3. Synchronization
-This plan makes sure that there's always only one thread being added to the `sleep_list` even when multiple threads call this function at the same time. Such synchronization is made sure by sharing a `sleep_list` across threads. 
+### 3. Synchronization
+ - This design makes sure that there's always only one thread being added to the `sleep_list` even when multiple threads call this function at the same time. Such synchronization is made sure by sharing a `sleep_list` across threads.
 
+<br />
 
-#### 4. Rationale
- - To minimize the amount of time spent in interrupt, this plan keeps a sleep list that is sorted based on the amount of sleep time. Such approach is going to make the the interrupt handler run as fast as possible. 
+### 4. Rationale
+ - We have considered storing `sleep_ticks` in each thread instead of `wake_tick`. However, in that case, we have to change `sleep_ticks` for all threads in `sleep_list` everytime, which is not as efficient.
+
+ - To minimize the amount of time spent in interrupt, this design keeps a sleep list that is sorted based on the time for it to wake up. Such approach is going to make the the interrupt handler run as fast as possible. 
  
  - `sleep_list` becomes a part of a critical section. This makes it atomic and makes sure that there's always only one thread being added at a time. 
  
@@ -89,9 +117,16 @@ This plan makes sure that there's always only one thread being added to the `sle
  - To make sure these executions run atomically and be consistent with OS behaviors, we disable interrupt before entering the following: `thread_unblock()`, `sleep_list_insert()`, `sleep_list_remove()`.
 
 
+<br />
+<br />
+<br />
+<br />
+
+
 ## Task 2: Priority Scheduler
 
 
+<br />
 
 ### 1. Data structures and functions
 
@@ -199,9 +234,11 @@ bool cond_sema_priority_less (const struct list_elem *e1, const struct list_elem
 
 
 
+<br />
 
 ### 2. Algorithms
 
+<br />
 
 #### Section 1 -- Choosing the next thread to run:
 
@@ -253,6 +290,7 @@ The second situation is when ``` lock->holder ``` is another thread. In this cas
  
  - If ``` priority_effective ``` is changed, we should yield the current thread.
 
+<br />
 
 ### 3. Synchronization
 
@@ -261,6 +299,7 @@ The second situation is when ``` lock->holder ``` is another thread. In this cas
  - For example, we have H, M, L which are three threads with decreasing priority and H acquires a lock in L while M also acquires a lock in L. Whenever we call ``` lock_acquire ``` method, we get the maximum of current thread's ``` priority_effective ``` and lock's ``` priority_max ```. Thus, after both H and M donate priority to L, whatever order they are, we can have L with H's ``` priority_effective ```. 
 
 
+<br />
 
 ### 4. Rationale
 
@@ -270,7 +309,15 @@ The second situation is when ``` lock->holder ``` is another thread. In this cas
  
  - As we designed the donation logic heavily based on the given code and logic, it would be easy to extend our design to accommodate additional features.
 
+<br />
+<br />
+<br />
+<br />
+
+
 ## Task 3: Multi-level Feedback Queue Scheduler (MLFQS)
+
+<br />
 
 ### 1. Data structures and functions
 
@@ -352,6 +399,7 @@ void refresh_priority_MLFQS(struct thread *t);    /* update priority for a threa
 ```
 
 
+<br />
 
 ### 2. Algorithms
 
@@ -373,12 +421,14 @@ void refresh_priority_MLFQS(struct thread *t);    /* update priority for a threa
 - Round Robin Implementation: This is simply done by the FIFO queue implementation we have. For example, if A, B, C are all on the waiting queue having the same highest priority, after A gets removed from waiting queue, even if it gets enqueued again with same highest priority, if will be after C, so the queue becomes: B, C, A...
 
 
+<br />
 
 ### 3. Synchronization
 
-There is not much synchronization issue for task3 since thread is no longer able to manipulate priority, and all the priority calculation is done by CPU. The only shared data between threads, load_avg, also can only be changed by CPU.
+ - There is not much synchronization issue for task3 since thread is no longer able to manipulate priority, and all the priority calculation is done by CPU. The only shared data between threads, load_avg, also can only be changed by CPU.
 
 
+<br />
 
 ### 4. Rationale
 
@@ -390,12 +440,19 @@ There is not much synchronization issue for task3 since thread is no longer able
 
 - It makes sense to put the priority update inside `thread_tick()` since it's called directly by external time interrupt handler, so all the operations are done for each time tick. 
 
+
+<br />
+<br />
+<br />
+<br />
+
 ## Additional Questions
 
 
 
 1. Consider a fully-functional correct implementation of this project, except for a single bug, which exists in the sema_up() function. According to the project requirements, semaphores (and other synchronization variables) must prefer higher-priority threads over lower-priority threads. However, my implementation chooses the highest-priority thread based on the base priority rather than the eﬀective priority. Essentially, priority donations are not taken into account when the semaphore decides which thread to unblock. Please design a test case that can prove the existence of this bug. Pintos test cases contain regular kernel-level code (variables, function calls, if statements, etc) and can print out text. We can compare the expected output with the actual output. If they do not match, then it proves that the implementation contains a bug. You should provide a description of how the test works, as well as the expected output and the actual output.
 
+<br />
 
 *Answer*
 
@@ -446,8 +503,16 @@ Suppose we have four threads: ``` Thread A ```, ``` Thread B ```, ``` Thread C `
  - However, if we use the current ``` sema_up ``` with comparison between base priorities, we actually unlock ``` Thread C ``` because ``` Thread C ``` has a higher base priority *(3)* than ``` Thread B ``` (2).
 Thus, the current oder is **"ACBD"**, which is not correct.
 
+<br />
+<br />
+<br />
+<br />
+
+
 
 2. (This question uses the MLFQS scheduler.) Suppose threads A, B, and C have nice values of 0, 1, and 2 respectively. Each has a recent_cpu value of 0. Fill in the table below showing the scheduling decision and the recent_cpu and priority values for each thread after each given number of timer ticks. We can use R(A) and P(A) to denote the recent_cpu and priority values of thread A, for brevity.
+
+<br />
 
 *Answer*
 
@@ -464,7 +529,14 @@ Thus, the current oder is **"ACBD"**, which is not correct.
 | 32          | 16   | 12   | 4    | 59   | 58   | 58   | A             |
 | 36          | 20   | 12   | 4    | 58   | 58   | 58   | C             |
 
+<br />
+<br />
+<br />
+<br />
+
 3. Did any ambiguities in the scheduler speciﬁcation make values in the table (in the previous question) uncertain? If so, what rule did you use to resolve them?
+
+<br />
 
 *Answer*
 
