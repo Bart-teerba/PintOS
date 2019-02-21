@@ -40,6 +40,7 @@ static void timer_interrupt (struct intr_frame *args UNUSED){...}  /* Modify tim
 void unblock_check (struct thread *t, void *aux UNUSED);        /* func for thread_sleep_foreach */
 void thread_sleep_foreach (thread_action_func *, void *);       /* apply func for all threads in sleep_list */
 
+
 /* Modification */
 struct thread {
 	...
@@ -60,6 +61,13 @@ static struct list sleep_list;
 /* apply func for all threads in sleep_list */
 void thread_sleep_foreach (thread_action_func *, void *){...}
 
+/* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
+bool thread_sleeper_more(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED){...}
+
+/* func for thread_sleep_foreach, can call thread_unblock */
+void unblock_check (struct thread *t, void *aux){...};
+
+
 /* Modification */
 static void init_thread (struct thread *t, const char *name, int priority) {
 	...
@@ -74,17 +82,11 @@ thread_init (void) {
   ...
 }
 
-/* insert thread into sleep_list with thread_sleeper_more, because we want to put small element in the front */
+/* insert thread into sleep_list with thread_sleeper_more, because we want to put small elements in the front */
 thread_block (void){...}
 
 /* pop thread from sleep_list */
 thread_unblock (void){...}
-
-/* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
-bool thread_sleeper_more(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED){...}
-
-/* func for thread_sleep_foreach, can call thread_unblock */
-void unblock_check (struct thread *t, void *aux);
 ```
 
 <br />
@@ -94,7 +96,7 @@ void unblock_check (struct thread *t, void *aux);
  
  - `timer_interrupt()`: This function increments the current time tick. Then, it calls `thread_sleep_foreach`
  
- - `thread_sleep_foreach()`: It go through all threads in `sleep_list`. For each thread from beginning, it wakes and pops it if its `wake_tick` is earlier than or the same as current time. In this case, we call `thread_unblock()` on the corresponding thread so it goes to `ready_list` and changes status to `THREAD_READY`. We keep doing this until the beginning thread of `sleep_list` has a `wake_tick` larger than current tick or `sleep_list` is empty.
+ - `thread_sleep_foreach()`: It go through all threads in `sleep_list`. For each thread from the beginning, it wakes and pops it if its `wake_tick` is earlier than or the same as current time. In this case, we call `thread_unblock()` on the corresponding thread so it goes to `ready_list` and changes status to `THREAD_READY`. We keep doing this until the beginning thread of `sleep_list` has a `wake_tick` larger than the current tick or `sleep_list` is empty.
 
 <br />
 
@@ -104,9 +106,9 @@ void unblock_check (struct thread *t, void *aux);
 <br />
 
 ### 4. Rationale
- - We have considered storing `sleep_ticks` in each thread instead of `wake_tick`. However, in that case, we have to change `sleep_ticks` for all threads in `sleep_list` everytime, which is not as efficient.
+ - We have considered storing `sleep_ticks` in each thread instead of `wake_tick`. However, in that case, we have to change `sleep_ticks` for all threads in `sleep_list` every time, which is not as efficient.
 
- - To minimize the amount of time spent in interrupt, this design keeps a sleep list that is sorted based on the time for it to wake up. Such approach is going to make the the interrupt handler run as fast as possible. 
+ - To minimize the amount of time spent in interrupt, this design keeps a sleep list that is sorted based on the time for it to wake up. Such an approach is going to make the interrupt handler run as fast as possible. 
  
  - `sleep_list` becomes a part of a critical section. This makes it atomic and makes sure that there's always only one thread being added at a time. 
  
@@ -371,7 +373,7 @@ void thread_tick (void) {
 /* add new functions */
 void increase_recent_cpu_by1(void){...}               /* Each time a timer interrupt occurs, recent_cpu is incremented by 1 for running thread, i.e. thread_current(), unless the idle thread is running */
 void refresh_load_avg(void){...}                      /* using formula, just a global variable update */
-void refresh_recent_cpu(struct thread *t){...}        /* update recent cpu for a thread */
+void refresh_recent_cpu(struct thread *t){...}        /* update recent CPU for a thread */
 void refresh_priority_MLFQS(struct thread *t) {...}   /* update priority for a thread */
 ```
 
@@ -394,7 +396,7 @@ struct thread { ...
 /* add new functions */
 void increase_recent_cpu_by1(void);               /* Each time a timer interrupt occurs, recent_cpu is incremented by 1 for running thread, i.e. thread_current(), unless the idle thread is running */
 void refresh_load_avg(void);                      /* using formula, just a global variable update */
-void refresh_recent_cpu(struct thread *t);        /* update recent cpu for a thread */
+void refresh_recent_cpu(struct thread *t);        /* update recent CPU for a thread */
 void refresh_priority_MLFQS(struct thread *t);    /* update priority for a thread */
 ```
 
@@ -407,38 +409,38 @@ void refresh_priority_MLFQS(struct thread *t);    /* update priority for a threa
 
 - We use the boolean variable `thread_mlfqs` to check whether we should use MLFQS related functions to update priority, and also prevent `thread_set_priority`, and no priority donation is done. If true, we also ignore the `priority` argument in `init_thread()`.
 
-- In `thread_tick()`, we first check whether `thread_mlfqs` flag is true. Since we are going to synchronize thread states,  we disable interrupts and call `increase_recent_cpu_by1`. Then we start check time ticks and iterate through all the thread elements in the `all_list`. if `ticks % TIMER_FREQ == 0`, i.e. multiple of a second, we call `refresh_load_avg` and `refresh_recent_cpu` to update `load_avg` and threads' recent cpu. If `ticks % 4 == 0`, we recalculate the priority of all threads.
+- In `thread_tick()`, we first check whether `thread_mlfqs` flag is true. Since we are going to synchronize thread states,  we disable interrupts and call `increase_recent_cpu_by1`. Then we start check time ticks and iterate through all the thread elements in the `all_list`. if `ticks % TIMER_FREQ == 0`, i.e. multiple of a second, we call `refresh_load_avg` and `refresh_recent_cpu` to update `load_avg` and threads' recent CPU. If `ticks % 4 == 0`, we recalculate the priority of all threads.
 
 - To achieve brevity, we here don't use a multi-level of priority queues. Since we are updating the priority of each thread for certain ticks, we can simply use the same `next_thread_to_run` implementation to choose which thread to run next. Similarly, all the other functions should generally work the same.
 
-- Calculate load average and recent cpu: Since these two variables require float point operation, we easily use the functions in `fixed-point.h`. That's also why we initialize `recent_cpu` to be `FP_CONST(0)`.
+- Calculate load average and recent CPU: Since these two variables require float point operation, we easily use the functions in `fixed-point.h`. That's also why we initialize `recent_cpu` to be `FP_CONST(0)`.
 
 - Implement `increase_recent_cpu_by1()`: This is called for the current thread, as required by doc, by the function `thread_tick` inside `thread.c` after checking current thread is not idle. 
 
 - Implement `refresh_load_avg()`: This is simply global variable update using some float point operation. `ready_threads` can be easily computed by calling `list_size (&ready_list)`.
 
 - Implement `refresh_recent_cpu()`: To avoid overflow, we first compute _(2 × load_avg)/(2 × load_avg + 1)_, then do the multiplication. 
-- Round Robin Implementation: This is simply done by the FIFO queue implementation we have. For example, if A, B, C are all on the waiting queue having the same highest priority, after A gets removed from waiting queue, even if it gets enqueued again with same highest priority, if will be after C, so the queue becomes: B, C, A...
+- Round Robin Implementation: This is simply done by the FIFO queue implementation we have. For example, if A, B, C which are on the the waiting queue have the same highest priority, after A gets removed from the waiting queue, even if it gets enqueued again with the same highest priority, it will be after C, so the queue becomes: B, C, A...
 
 
 <br />
 
 ### 3. Synchronization
 
- - There is not much synchronization issue for task3 since thread is no longer able to manipulate priority, and all the priority calculation is done by CPU. The only shared data between threads, load_avg, also can only be changed by CPU.
+ - There is not much synchronization issue for task3 since a thread is no longer able to manipulate priority, and all the priority calculation is done by CPU. The only shared data between threads, load_avg, also can only be changed by CPU.
 
 
 <br />
 
 ### 4. Rationale
 
-- We don't really choose to implement a real MLFQS for certain reasons. First, if we do, we'll need an array of 64 to hold 64 different linked lists for each priority. This is both memory and time inefficient. Second, this creates inconsistency with our previous implementation, and thus we need add extra code to do things like array initialization, array iteration and updates, etc.
+- We don't really choose to implement a real MLFQS for certain reasons. First, if we do, we'll need an array of 64 to hold 64 different linked lists for each priority. This is both memory and time inefficient. Second, this creates an inconsistency with our previous implementation, and thus we need to add extra code to do things like array initialization, array iteration, and updates, etc.
 
-- It should be rather easy to extend our code, since most of the features in this part is controlled by the one `thread_mlfqs` boolean variable, we also avoid to add extra data structures, so it should be memory efficient.
+- It should be rather easy to extend our code since most of the features in this part is controlled by the one `thread_mlfqs` boolean variable, we also avoid to add extra data structures, so it should be memory efficient.
 
 - As for amount of code, the most part of code should be about implementing `refresh_load_avg(void)`, `refresh_recent_cpu`, `refresh_priority_MLFQS(void)` and modifying `thread_tick()`.
 
-- It makes sense to put the priority update inside `thread_tick()` since it's called directly by external time interrupt handler, so all the operations are done for each time tick. 
+- It makes sense to put the priority update inside `thread_tick()` since it's called directly by the external timer interrupt handler, so all the operations are done for each time tick. 
 
 
 <br />
@@ -500,8 +502,7 @@ Suppose we have four threads: ``` Thread A ```, ``` Thread B ```, ``` Thread C `
 
  - If we have ``` sema_up ``` with correct logic, we should unblock ``` Thread B ``` when releasing the lock in A at *BP_2* because ``` Thread B ``` has a higher effective priority *(4)* than ``` Thread C ``` (3). Thus, the correct order should be **"ABDC"**.
 
- - However, if we use the current ``` sema_up ``` with comparison between base priorities, we actually unlock ``` Thread C ``` because ``` Thread C ``` has a higher base priority *(3)* than ``` Thread B ``` (2).
-Thus, the current oder is **"ACBD"**, which is not correct.
+ - However, if we use the current ``` sema_up ``` which compares base priorities, we actually unlock ``` Thread C ``` because ``` Thread C ``` has a higher base priority *(3)* than ``` Thread B ``` (2). Thus, the current order is **"ACBD"**, which is not correct.
 
 <br />
 <br />
@@ -540,4 +541,4 @@ Thus, the current oder is **"ACBD"**, which is not correct.
 
 *Answer*
 
-It's not certain when multiple threads all have the same highest priority, which thread should be dequeued first. To resolve this problem, "Round Robin" is used, and the threads with same highest priority are cycled through to kind of ensure "fairness".
+It's not certain when multiple threads all have the same highest priority, which thread should be dequeued first. To resolve this problem, "Round Robin" is used, and the threads with the same highest priority are cycled through to kind of ensure "fairness".
