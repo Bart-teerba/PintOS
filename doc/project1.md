@@ -30,7 +30,8 @@ void timer_sleep (int64_t ts){
   ...
 }
 
-static void timer_interrupt (struct intr_frame *args UNUSED){...}  /* Modify timer_interrupt to make operations atomic, evoke unblock_check using thread_sleep_foreach */
+/* Modify timer_interrupt to make operations atomic, evoke unblock_check using thread_sleep_foreach */
+static void timer_interrupt (struct intr_frame *args UNUSED){...}  
 ```
 
 **thread.h**
