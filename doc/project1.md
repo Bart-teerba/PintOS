@@ -28,9 +28,9 @@ void timer_sleep (int64_t ts){
   current_thread->wake_tick = ts + ticks;                           /* set wake_tick */
   thread_block();                                                   /* block current thread */
   ...
-};
+}
 
-static void timer_interrupt (struct intr_frame *args UNUSED){...};  /* Modify timer_interrupt to make operations atomic, evoke unblock_check using thread_sleep_foreach */
+static void timer_interrupt (struct intr_frame *args UNUSED){...}  /* Modify timer_interrupt to make operations atomic, evoke unblock_check using thread_sleep_foreach */
 ```
 
 **thread.h**
@@ -44,7 +44,7 @@ void thread_sleep_foreach (thread_action_func *, void *);       /* apply func fo
 struct thread {
 	...
 	int64_t wake_tick;        /* Amount of time before wake */
-	struct list_elem sleep_elem  /* list element for the sleeping list. */
+	struct list_elem sleep_elem;  /* list element for the sleeping list. */
 	...
 }
 ```
@@ -81,7 +81,7 @@ thread_block (void){...}
 thread_unblock (void){...}
 
 /* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
-bool thread_sleeper_more(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED){...};
+bool thread_sleeper_more(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED){...}
 
 /* func for thread_sleep_foreach, can call thread_unblock */
 void unblock_check (struct thread *t, void *aux);
@@ -179,7 +179,7 @@ struct lock
   {
     struct list_elem elem;          /* elem to store in list */
     int max_priority;               /* highest priority of threads which needs this lock */
-  };
+  }
   
 /* Add two less functions */
 bool lock_priority_less (const struct list_elem *e1, const struct list_elem *e2, void *aux);
@@ -207,11 +207,11 @@ bool cond_sema_priority_less (const struct list_elem *e1, const struct list_elem
  - Add a function ``` thread_priority_less ``` which is fed into ``` list_insert_ordered ``` function of list.
 
 ```c
-void thread_get_lock (struct lock *){...};
-void thread_rm_lock (struct lock *){...};
-void thread_donate_priority (struct thread *){...};
-void thread_update_priority (struct thread *){...};
-bool priority_less(const struct list_elem *e1, const struct list_elem *e2, void *aux){...};
+void thread_get_lock (struct lock *){...}
+void thread_rm_lock (struct lock *){...}
+void thread_donate_priority (struct thread *){...}
+void thread_update_priority (struct thread *){...}
+bool priority_less(const struct list_elem *e1, const struct list_elem *e2, void *aux){...}
 ```
 
 
@@ -228,8 +228,8 @@ bool priority_less(const struct list_elem *e1, const struct list_elem *e2, void 
  - We create two functions ``` lock_priority_less ``` and ``` cond_sema_priority_less ``` which should compare ``` priority_max ``` of two locks and ``` priority_effective ``` of threads corresponding to semaphores or condition variables. 
 
 ```c
-bool lock_priority_less (const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED){...};
-bool cond_sema_priority_less (const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED){...};
+bool lock_priority_less (const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED){...}
+bool cond_sema_priority_less (const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED){...}
 ```
 
 
@@ -334,7 +334,7 @@ void thread_init (void)
     initial_thread->nice = 0;    
     initial_thread->recent_cpu = FP_CONST(0);
     ...    
-};
+}
 
 static void
 init_thread (struct thread *t, const char *name, int priority)
@@ -343,36 +343,36 @@ init_thread (struct thread *t, const char *name, int priority)
     t->nice = 0;
     t->recent_cpu = FP_CONST(0);
     ...
-};
+}
 
 
 /* implement empty function, simple grab or update */
-void thread_set_nice (int nice UNUSED) {...};
-int thread_get_nice (void) {...};
-int thread_get_load_avg (void) {...};
-int thread_get_recent_cpu (void) {...} ;  
+void thread_set_nice (int nice UNUSED) {...}
+int thread_get_nice (void) {...}
+int thread_get_load_avg (void) {...}
+int thread_get_recent_cpu (void) {...}  
 
 
 /*modify existing function */
 void thread_set_priority (int new_priority) {
     ... /* want to check thread_mlfqs bool */
-};
+}
 
 void init_thread (struct thread *t, const char *name, int priority)
 {
     ... /* want to check thread_mlfqs flag, if true, ignore priority */
-};
+}
 
 void thread_tick (void) {
     ... /* add time tick check and calls to mlfqs-related funcs to update load_avg, recent_cpu and priority */
-};
+}
 
 
 /* add new functions */
-void increase_recent_cpu_by1(void){...};               /* Each time a timer interrupt occurs, recent_cpu is incremented by 1 for running thread, i.e. thread_current(), unless the idle thread is running */
-void refresh_load_avg(void){...};                      /* using formula, just a global variable update */
-void refresh_recent_cpu(struct thread *t){...};        /* update recent cpu for a thread */
-void refresh_priority_MLFQS(struct thread *t) {...};   /* update priority for a thread */
+void increase_recent_cpu_by1(void){...}               /* Each time a timer interrupt occurs, recent_cpu is incremented by 1 for running thread, i.e. thread_current(), unless the idle thread is running */
+void refresh_load_avg(void){...}                      /* using formula, just a global variable update */
+void refresh_recent_cpu(struct thread *t){...}        /* update recent cpu for a thread */
+void refresh_priority_MLFQS(struct thread *t) {...}   /* update priority for a thread */
 ```
 
 
@@ -389,7 +389,7 @@ struct thread { ...
     int nice;                       
     int recent_cpu;             
     ...
-};
+}
 
 /* add new functions */
 void increase_recent_cpu_by1(void);               /* Each time a timer interrupt occurs, recent_cpu is incremented by 1 for running thread, i.e. thread_current(), unless the idle thread is running */
