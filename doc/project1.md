@@ -25,8 +25,8 @@ Design Document for Project 1: Threads
 /* Modification based on the original code */
 void timer_sleep (int64_t ts){
   ...
-  current_thread->wake_tick = ts + ticks;                           /* set wake_tick */
-  thread_block();                                                   /* block current thread */
+  current_thread->wake_tick = ts + ticks;                           /* Set wake_tick */
+  thread_block();                                                   /* Block current thread */
   ...
 }
 
@@ -38,15 +38,15 @@ static void timer_interrupt (struct intr_frame *args UNUSED){...}
 
 ```c
 /* Addition */
-void unblock_check (struct thread *t, void *aux UNUSED);        /* func for thread_sleep_foreach */
-void thread_sleep_foreach (thread_action_func *, void *);       /* apply func for all threads in sleep_list */
+void unblock_check (struct thread *t, void *aux UNUSED);        /* Func for thread_sleep_foreach */
+void thread_sleep_foreach (thread_action_func *, void *);       /* Apply func for all threads in sleep_list */
 
 
 /* Modification */
 struct thread {
 	...
-	int64_t wake_tick;        /* Amount of time before wake */
-	struct list_elem sleep_elem;  /* list element for the sleeping list. */
+	int64_t wake_tick;                   /* Amount of time before wake */
+	struct list_elem sleep_elem;         /* List element for the sleeping list. */
 	...
 }
 ```
@@ -56,37 +56,39 @@ struct thread {
 
 ```c
 /* Addition */
+
 /* List of sleeping threads */
 static struct list sleep_list;
 
-/* apply func for all threads in sleep_list */
+/* Apply func for all threads in sleep_list */
 void thread_sleep_foreach (thread_action_func *, void *){...}
 
 /* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
 bool thread_sleeper_more(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED){...}
 
-/* func for thread_sleep_foreach, can call thread_unblock */
+/* Func for thread_sleep_foreach, can call thread_unblock */
 void unblock_check (struct thread *t, void *aux){...};
 
 
 /* Modification */
-static void init_thread (struct thread *t, const char *name, int priority) {
+
+static void init_thread (struct thread *t, const char *name, int priority){
 	...
-	t->wake_tick = -1;    /* initialize wake_tick of each thread */
+	t->wake_tick = -1;    /* Initialize wake_tick of each thread */
 	...
 }
 
-/* initialize current_tick and sleep_list */
-thread_init (void) {
+/* Initialize current_tick and sleep_list */
+thread_init (void){
   ...
   list_init (&sleep_list);
   ...
 }
 
-/* insert thread into sleep_list with thread_sleeper_more, because we want to put small elements in the front */
+/* Insert thread into sleep_list with thread_sleeper_more, because we want to put small elements in the front */
 thread_block (void){...}
 
-/* pop thread from sleep_list */
+/* Pop thread from sleep_list */
 thread_unblock (void){...}
 ```
 
@@ -148,15 +150,16 @@ We redefine the original ``` priority ``` variable in thread as ``` priority_eff
  - Add a function ``` thread_priority_less ``` which is fed into ``` list_insert_ordered ``` function of list. <br />
 
 ```c
-/* Add three new variables in thread */
+/* Add new variables */
 struct thread
 {
-  struct lock *waiting_lock;          /* a lock acuired by the thread */
-  struct list locks;                  /* stores all the needed locks */
-  int pritority_ori;                  /* stores the original priority of the thread */
+  struct lock *waiting_lock;          /* A lock acuired by the thread */
+  struct list locks;                  /* Stores all the needed locks */
+  int pritority_ori;                  /* Stores the original priority of the thread */
   ...
 }
 
+/* Add new functions */
 void thread_get_lock (struct lock *);
 void thread_rm_lock (struct lock *);
 void thread_donate_priority (struct thread *);
@@ -180,8 +183,8 @@ bool priority_less(const struct list_elem *e1, const struct list_elem *e2, void 
 /* Add two variables in struct lock */
 struct lock
   {
-    struct list_elem elem;          /* elem to store in list */
-    int max_priority;               /* highest priority of threads which needs this lock */
+    struct list_elem elem;          /* Elem to store in list */
+    int max_priority;               /* Highest priority of threads which needs this lock */
   }
   
 /* Add two less functions */
@@ -193,7 +196,7 @@ bool cond_sema_priority_less (const struct list_elem *e1, const struct list_elem
 
 **In thread.c**
 
- - Change all the ``` list_push_back ``` into ``` list_insert_ordered ``` with ``` thread_priority_less ``` function. There are three methods which involve this amendment: ``` thread_unblock ```, ``` thread_yield ```, ``` init_thread ```.
+ - Change all the ``` list_push_back ``` into ``` list_insert_ordered ``` with ``` thread_priority_less ``` function. There are three functions which involve this amendment: ``` thread_unblock ```, ``` thread_yield ```, ``` init_thread ```.
 
  - We have to change ``` thread_set_priority ``` function. Here, we have to update the ``` priority_ori ``` as ``` new_pritority ``` and ensure the ``` priority_effective ``` variable of the thread is the max of ``` priority_ori ``` and itself. If ``` priority_effective ``` is changed, we should yield the current thread.
 
@@ -247,7 +250,7 @@ bool cond_sema_priority_less (const struct list_elem *e1, const struct list_elem
 
  - To handle the priority issues, we want to change the ``` ready_list ``` into a priority queue keep the threads sorted from threads with high ``` priority_effective ``` to those with low ones. Every time we choose the next thread to run, we need to pop from the front of the ``` ready_list ```. <br />
  
- - Throughout the whole implementation of thread, whenever there is an insert into ``` ready_list ```, we have to make sure that we are using ``` list_insert_sorted ``` with method ``` thread_priority_less ``` as an argument. <br />
+ - Throughout the whole implementation of thread, whenever there is an insert into ``` ready_list ```, we have to make sure that we are using ``` list_insert_sorted ``` with function ``` thread_priority_less ``` as an argument. <br />
  
  - Meanwhile, after we add a thread into ``` ready_list ```, we have to immediately redecide which thread to run by calling ``` thread_yield ```.
 
@@ -299,7 +302,7 @@ The second situation is when ``` lock->holder ``` is another thread. In this cas
 
  - Because we implement priority donation of a thread through the ``` priority_max ``` in its lock, we can always get the maximum priority of all threads which need that lock, no matter in which order the threads acquire the lock, we can always get the right ``` priority_effective ``` of our target thread. 
  
- - For example, we have H, M, L which are three threads with decreasing priority and H acquires a lock in L while M also acquires a lock in L. Whenever we call ``` lock_acquire ``` method, we get the maximum of current thread's ``` priority_effective ``` and lock's ``` priority_max ```. Thus, after both H and M donate priority to L, whatever order they are, we can have L with H's ``` priority_effective ```. 
+ - For example, we have H, M, L which are three threads with decreasing priority and H acquires a lock in L while M also acquires a lock in L. Whenever we call ``` lock_acquire ``` function, we get the maximum of current thread's ``` priority_effective ``` and lock's ``` priority_max ```. Thus, after both H and M donate priority to L, whatever order they are, we can have L with H's ``` priority_effective ```. 
 
 
 <br />
@@ -327,10 +330,10 @@ The second situation is when ``` lock->holder ``` is another thread. In this cas
 **thread.c**
 
 ```c
-/* add global variable */
+/* Add global variable */
 int load_avg;
 
-/* add variable in initialization */
+/* Add variable in initialization */
 void thread_init (void)
 {
     ...
@@ -339,8 +342,7 @@ void thread_init (void)
     ...    
 }
 
-static void
-init_thread (struct thread *t, const char *name, int priority)
+static void init_thread (struct thread *t, const char *name, int priority)
 {	
     ...
     t->nice = 0;
@@ -349,33 +351,38 @@ init_thread (struct thread *t, const char *name, int priority)
 }
 
 
-/* implement empty function, simple grab or update */
-void thread_set_nice (int nice UNUSED) {...}
-int thread_get_nice (void) {...}
-int thread_get_load_avg (void) {...}
-int thread_get_recent_cpu (void) {...}  
+/* Implement empty function, simple grab or update */
+void thread_set_nice (int nice UNUSED){...}
+int thread_get_nice (void){...}
+int thread_get_load_avg (void){...}
+int thread_get_recent_cpu (void){...}  
 
 
-/*modify existing function */
-void thread_set_priority (int new_priority) {
-    ... /* want to check thread_mlfqs bool */
-}
+/* Modify functions */
 
-void init_thread (struct thread *t, const char *name, int priority)
-{
-    ... /* want to check thread_mlfqs flag, if true, ignore priority */
-}
+/* Want to check thread_mlfqs bool */
+void thread_set_priority (int new_priority){...}
 
-void thread_tick (void) {
-    ... /* add time tick check and calls to mlfqs-related funcs to update load_avg, recent_cpu and priority */
-}
+/* Want to check thread_mlfqs flag, if true, ignore priority */
+void init_thread (struct thread *t, const char *name, int priority){...}
+
+ /* Add time tick check and calls to mlfqs-related funcs to update load_avg, recent_cpu and priority */
+void thread_tick (void){...}
 
 
-/* add new functions */
-void increase_recent_cpu_by1(void){...}               /* Each time a timer interrupt occurs, recent_cpu is incremented by 1 for running thread, i.e. thread_current(), unless the idle thread is running */
-void refresh_load_avg(void){...}                      /* using formula, just a global variable update */
-void refresh_recent_cpu(struct thread *t){...}        /* update recent CPU for a thread */
-void refresh_priority_MLFQS(struct thread *t) {...}   /* update priority for a thread */
+/* Add functions */
+
+/* Each time a timer interrupt occurs, recent_cpu is incremented by 1 for running thread, i.e. thread_current(), unless the idle thread is running */
+void increase_recent_cpu_by1(void){...}
+
+/* Using formula, just a global variable update */
+void refresh_load_avg(void){...}
+
+/* Update recent CPU for a thread */
+void refresh_recent_cpu(struct thread *t){...}
+
+/* Update priority for a thread */
+void refresh_priority_MLFQS(struct thread *t){...}   
 ```
 
 
@@ -394,11 +401,19 @@ struct thread { ...
     ...
 }
 
-/* add new functions */
-void increase_recent_cpu_by1(void);               /* Each time a timer interrupt occurs, recent_cpu is incremented by 1 for running thread, i.e. thread_current(), unless the idle thread is running */
-void refresh_load_avg(void);                      /* using formula, just a global variable update */
-void refresh_recent_cpu(struct thread *t);        /* update recent CPU for a thread */
-void refresh_priority_MLFQS(struct thread *t);    /* update priority for a thread */
+/* Add functions */
+
+/* Each time a timer interrupt occurs, recent_cpu is incremented by 1 for running thread, i.e. thread_current(), unless the idle thread is running */
+void increase_recent_cpu_by1(void);
+
+/* Using formula, just a global variable update */
+void refresh_load_avg(void);
+
+/* Update recent CPU for a thread */
+void refresh_recent_cpu(struct thread *t);
+
+/* Update priority for a thread */
+void refresh_priority_MLFQS(struct thread *t);    
 ```
 
 
@@ -462,7 +477,7 @@ void refresh_priority_MLFQS(struct thread *t);    /* update priority for a threa
 The following pseudocode outputs wrongly because the current ``` sema_up ``` unblocks the thread with highest base priority but not effective priority.
 
 ```c
-Thread A (priority 1) {
+Thread A (priority 1){
 	acquire Lock_1                              
 	create Thread B                                       
 	create Thread C
@@ -471,7 +486,7 @@ Thread A (priority 1) {
 	release Lock_1                                        /* Breakpoint 2 (BP_2) */
 }
 
-Thread B (priority 2) {
+Thread B (priority 2){
 	acquire Lock_2
 	acquire Lock_1
 	print("%s get all needed locks.\n", "B")
@@ -479,13 +494,13 @@ Thread B (priority 2) {
 	release Lock_1
 }
 
-Thread C (priority 3) {
+Thread C (priority 3){
 	acquire Lock_1
 	print("%s get all needed locks.\n", "C")
 	release Lock_1
 }
 
-Thread D (priority 4) {
+Thread D (priority 4){
 	acquire Lock_2
 	print("%s get all needed locks.\n", "D")
 	release Lock_2
