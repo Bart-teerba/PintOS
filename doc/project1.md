@@ -31,15 +31,15 @@ void timer_sleep (int64_t ts){
 }
 
 /* Modify timer_interrupt to make operations atomic, evoke unblock_check using thread_sleep_foreach */
-static void timer_interrupt (struct intr_frame *args UNUSED){...}  
+static void timer_interrupt (struct intr_frame, *args UNUSED){...}  
 ```
 
 **thread.h**
 
 ```c
 /* Addition */
-void unblock_check (struct thread *t, void *aux UNUSED);        /* Func for thread_sleep_foreach */
-void thread_sleep_foreach (thread_action_func *, void *);       /* Apply func for all threads in sleep_list */
+void unblock_check (struct thread *t, void *aux);        /* Func for thread_sleep_foreach */
+void thread_sleep_foreach (thread_action_func *, void *aux);       /* Apply func for all threads in sleep_list */
 
 
 /* Modification */
@@ -61,7 +61,7 @@ struct thread {
 static struct list sleep_list;
 
 /* Apply func for all threads in sleep_list */
-void thread_sleep_foreach (thread_action_func *, void *){...}
+void thread_sleep_foreach (thread_action_func *, void *aux){...}
 
 /* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
 bool thread_sleeper_more(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED){...}
