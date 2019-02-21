@@ -347,6 +347,55 @@ There is not much synchronization issue for task3 since thread is no longer able
 1. Consider a fully-functional correct implementation of this project, except for a single bug, which exists in the sema_up() function. According to the project requirements, semaphores (and other synchronization variables) must prefer higher-priority threads over lower-priority threads. However, my implementation chooses the highest-priority thread based on the base priority rather than the eﬀective priority. Essentially, priority donations are not taken into account when the semaphore decides which thread to unblock. Please design a test case that can prove the existence of this bug. Pintos test cases contain regular kernel-level code (variables, function calls, if statements, etc) and can print out text. We can compare the expected output with the actual output. If they do not match, then it proves that the implementation contains a bug. You should provide a description of how the test works, as well as the expected output and the actual output.
 
 
+*Answer*
+
+The following pseudocode outputs wrongly because the current ``` sema_up ``` unblocks the thread with highest base priority but not effective priority.
+
+```c
+Thread A (priority 1) {
+	acquire Lock_1                              
+	create Thread B                                       
+	create Thread C
+	create Thread D
+	print("%s get all needed locks.\n", "A")              /* Breakpoint 1 (BP_1) */
+	release Lock_1                                        /* Breakpoint 2 (BP_2) */
+}
+
+Thread B (priority 2) {
+	acquire Lock_2
+	acquire Lock_1
+	print("%s get all needed locks.\n", "B")
+	release Lock_2
+	release Lock_1
+}
+
+Thread C (priority 3) {
+	acquire Lock_1
+	print("%s get all needed locks.\n", "C")
+	release Lock_1
+}
+
+Thread D (priority 4) {
+	acquire Lock_2
+	print("%s get all needed locks.\n", "D")
+	release Lock_2
+}
+```
+
+Suppose we have four threads: ``` Thread A ```, ``` Thread B ```, ``` Thread C ``` and ``` Thread D ``` which has priority 1, 2, 3, 4 in order. At the point we get to *BP_1*, D acquires a lock ``` Lock_2 ``` in B and both B, C acquire the same lock ``` Lock_1 ``` in A. We now have the following priority table:
+
+| Thread Name | Base Priority | Effective Priority |
+| ----------- | ------------- | ------------------ |
+| Thread A    | 1             | 4                  |
+| Thread B    | 2             | 4                  |
+| Thread C    | 3             | 3                  |
+| Thread D    | 4             | 4                  |
+
+If we have ``` sema_up ``` with correct logic, we should unblock ``` Thread B ``` when releasing the lock in A at *BP_2* because ``` Thread B ``` has a higher effective priority *(4)* than ``` Thread C ``` (3). Thus, the correct order should be **"ABDC"**.
+
+However, if we use the current ``` sema_up ``` with comparison between base priorities, we actually unlock ``` Thread C ``` because ``` Thread C ``` has a higher base priority *(3)* than ``` Thread B ``` (2).
+Thus, the current oder is **"ACBD"**, which is not correct.
+
 
 2. (This question uses the MLFQS scheduler.) Suppose threads A, B, and C have nice values of 0, 1, and 2 respectively. Each has a recent_cpu value of 0. Fill in the table below showing the scheduling decision and the recent_cpu and priority values for each thread after each given number of timer ticks. We can use R(A) and P(A) to denote the recent_cpu and priority values of thread A, for brevity.
 
