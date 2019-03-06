@@ -171,6 +171,24 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
+  if (thread_mlfqs) {
+    enum intr_level old_level = intr_disable ();
+
+    /* increase the running thread's recent cpu by one. */
+    increace_recent_cpu_by1();
+
+    /* Update load average and recent cpu*/
+    if (ticks % TIMER_FREQ == 0) {
+      refresh_load_avg();
+    }
+
+    /* Update priority based on ticks */
+    if (ticks % 4 == 0) {
+      refresh_priority_MLFQS(ticks, TIMER_FREQ);
+    }
+
+    intr_set_level(old_level);
+  }
   thread_tick ();
 }
 

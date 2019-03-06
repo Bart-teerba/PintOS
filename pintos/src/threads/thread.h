@@ -144,4 +144,8 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+void increace_recent_cpu_by1 (void); 
+void refresh_load_avg (void);
+void refresh_recent_cpu (void); 
+void refresh_priority_MLFQS (int ticks, int timer_frequency);
 #endif /* threads/thread.h */
