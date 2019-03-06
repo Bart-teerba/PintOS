@@ -180,6 +180,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
     /* Update load average and recent cpu*/
     if (ticks % TIMER_FREQ == 0) {
       refresh_load_avg();
+      refresh_recent_cpu();
     }
 
     /* Update priority based on ticks */
