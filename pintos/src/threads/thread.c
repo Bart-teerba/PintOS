@@ -77,7 +77,7 @@ static tid_t allocate_tid (void);
 void increace_recent_cpu_by1 (void); 
 void refresh_load_avg (void);
 void refresh_recent_cpu (void); 
-void refresh_priority_MLFQS (int ticks, int timer_frequency);
+void refresh_priority_MLFQS (struct thread *t);
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -122,7 +122,7 @@ thread_start (void)
 
   /* initialize load average */
   load_avg = fix_int(0);
-  
+
   /* Start preemptive thread scheduling. */
   intr_enable ();
 
@@ -628,63 +628,42 @@ refresh_load_avg (void)
   if (thread_current () != idle_thread) {
     num_ready_threads += 1;
   }
+
   load_avg = fix_add(fix_mul(fix_div(fix_int(59), fix_int(60)), load_avg), \
-      fix_mul(fix_div(fix_int(1),fix_int(60)), fix_int(num_ready_threads)));
+      fix_unscale(fix_int(num_ready_threads), 60));
 }
 
 void
 refresh_recent_cpu (void) {
   ASSERT(thread_mlfqs);
   struct list_elem * ele;
-  fixed_point_t factor = fix_div (fix_mul (fix_int(2), load_avg), \
-    fix_add(fix_mul(fix_int(2), load_avg), fix_int(1)));
+  fixed_point_t factor = fix_div (fix_scale (load_avg, 2), \
+    fix_add(fix_scale(load_avg, 2), fix_int(1)));
 
   for (ele = list_begin (&all_list); ele != list_end (&all_list); ele = list_next(ele)) {
     struct thread  *t_entry = list_entry(ele, struct thread, allelem);
     if (t_entry != idle_thread) {
-      t_entry->recent_cpu = fix_add(fix_mul (factor, t_entry->recent_cpu), fix_int (t_entry->nice));
+      t_entry->recent_cpu = fix_add (fix_mul (factor, t_entry->recent_cpu), fix_int (t_entry->nice));
     }
   }
 }
 
 void 
-refresh_priority_MLFQS (int ticks, int timer_frequency) {
+refresh_priority_MLFQS (struct thread *t) {
 
   /* To save computation, we only update all threads' priority iff multiple of a second. */
   ASSERT(thread_mlfqs);
-  if (ticks % timer_frequency == 0) {
-    struct list_elem * ele;
-    for (ele = list_begin (&all_list); ele != list_end (&all_list); ele = list_next(ele)) {
-      struct thread  *t_entry = list_entry(ele, struct thread, allelem);
-      if (t_entry != idle_thread) {
-        fixed_point_t subtracted = fix_add(fix_div(t_entry->recent_cpu, fix_int(4)), fix_int(t_entry->nice * 2));
-        int pri = fix_trunc(fix_sub(fix_int(PRI_MAX), subtracted));
-        if (pri > PRI_MAX) {
-          pri = PRI_MAX;
-        }
-        if (pri < PRI_MIN) {
-          pri = PRI_MIN;
-        }
-        t_entry->priority = pri;
-      }
+  if (t != idle_thread) {
+    /* truncated priority */
+    fixed_point_t subtracted = fix_add(fix_unscale(t->recent_cpu, 4), fix_int(t->nice * 2));
+    int pri = fix_trunc(fix_sub(fix_int(PRI_MAX), subtracted));
+    if (pri > PRI_MAX) {
+      pri = PRI_MAX;
     }
-  }
-  else {
-    struct thread* t = thread_current ();
-    if (t != idle_thread) {
-      /* truncated priority */
-      fixed_point_t subtracted = fix_add(fix_div(t->recent_cpu, fix_int(4)), fix_int(t->nice * 2));
-      int pri = fix_trunc(fix_sub(fix_int(PRI_MAX), subtracted));
-      if (pri > PRI_MAX) {
-        pri = PRI_MAX;
-      }
-      if (pri < PRI_MIN) {
-        pri = PRI_MIN;
-      }
-      t->priority = pri;
+    if (pri < PRI_MIN) {
+      pri = PRI_MIN;
     }
-
+    t->priority = pri;
   }
-
 }
 

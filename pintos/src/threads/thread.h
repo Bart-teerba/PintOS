@@ -149,5 +149,5 @@ int thread_get_load_avg (void);
 void increace_recent_cpu_by1 (void); 
 void refresh_load_avg (void);
 void refresh_recent_cpu (void); 
-void refresh_priority_MLFQS (int ticks, int timer_frequency);
+void refresh_priority_MLFQS (struct thread *t);
 #endif /* threads/thread.h */

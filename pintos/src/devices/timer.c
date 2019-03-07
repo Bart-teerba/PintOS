@@ -184,9 +184,10 @@ timer_interrupt (struct intr_frame *args UNUSED)
     }
 
     /* Update priority based on ticks */
-    if (ticks % 4 == 0) {
-      refresh_priority_MLFQS(ticks, TIMER_FREQ);
+    if (ticks % 4 == 0) {  
+      thread_foreach(&refresh_priority_MLFQS, NULL);
     }
+
 
     intr_set_level(old_level);
   }
