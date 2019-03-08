@@ -168,9 +168,9 @@ void refresh_load_avg (void);
 void refresh_recent_cpu (void);
 void refresh_priority_MLFQS (struct thread *t);
 
-/* Apply function for all threads in sleep_list */
-void thread_sleep_foreach(int64_t ticks);
-/* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
-bool thread_sleeper_less(const struct list_elem *e1, const struct list_elem *e2, void *aux);
+// /* Apply function for all threads in sleep_list */
+// void thread_sleep_foreach(int64_t ticks);
+// /* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
+// bool thread_sleeper_less(const struct list_elem *e1, const struct list_elem *e2, void *aux);
 
 #endif /* threads/thread.h */

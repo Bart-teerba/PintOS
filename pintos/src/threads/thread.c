@@ -84,17 +84,19 @@ void refresh_load_avg (void);
 void refresh_recent_cpu (void);
 void refresh_priority_MLFQS (struct thread *t);
 
-/* Addition */
+
+bool priority_less(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED) {
+  return list_entry(e1,struct thread, elem)->priority_effective < list_entry(e2, struct thread, elem)->priority_effective;
+}
 
 /* List of sleeping threads */
 static struct list sleep_list;
 
-/* Check if threads have to be wakened for all threads in sleep_list */
-void thread_sleep_foreach (int64_t ticks);
-
-/* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
-bool thread_sleeper_less(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED);
-
+// /* Check if threads have to be wakened for all threads in sleep_list */
+// void thread_sleep_foreach (int64_t ticks);
+//
+// /* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
+// bool thread_sleeper_less(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED);
 
 
 
@@ -236,9 +238,6 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
-  /* set wake_tick = -1 to distinguish from init progress when wake_tick = -2 */
-  t->wake_tick = -1;
-
   /* Add to run queue. */
   thread_unblock (t);
 
@@ -260,11 +259,6 @@ thread_block (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   thread_current ()->status = THREAD_BLOCKED;
-  enum intr_level old_level = intr_disable ();
-  /* Insert thread into sleep_list with thread_sleeper_more, because we want to put small elements in the front */
-  list_insert_ordered (&sleep_list, &thread_current()->sleep_elem,
-                       thread_sleeper_less, NULL);
-  intr_set_level (old_level);
   schedule ();
 }
 
@@ -285,7 +279,6 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_remove (&t->sleep_elem);
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -528,18 +521,14 @@ init_thread (struct thread *t, const char *name, int priority)
   ASSERT (name != NULL);
 
   memset (t, 0, sizeof *t);
-  old_level = intr_disable ();
+
 
   /* Add new variables */
-  t->wake_tick = -2;        /* initialize wake_tick of each thread as -2 while in init process*/
   t->priority_ori = priority;
   list_init(&t->locks);
   t->waiting_lock = NULL;
 
-  /* add it to sleep_list */
-  list_insert_ordered (&sleep_list, &t->sleep_elem,
-                       thread_sleeper_less, NULL);
-  intr_set_level (old_level);
+
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
@@ -547,6 +536,9 @@ init_thread (struct thread *t, const char *name, int priority)
     t->priority_effective = priority;
   }
   t->magic = THREAD_MAGIC;
+
+
+
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -578,9 +570,7 @@ next_thread_to_run (void)
     return idle_thread;
   }
   struct list_elem *thread_elem = list_max (&ready_list, priority_less, NULL);
-  enum intr_level old_level = intr_disable ();
   list_remove(thread_elem);
-  intr_set_level (old_level);
   return list_entry (thread_elem, struct thread, elem);
 }
 
@@ -674,36 +664,6 @@ allocate_tid (void)
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 
-
-/* tast 1 implementation goes here */
-
-/* Apply func for all threads in sleep_list */
-void thread_sleep_foreach (int64_t ticks)
-{
-  struct list_elem *e;
-
-  ASSERT (intr_get_level () == INTR_OFF);
-
-  for (e = list_begin (&sleep_list); e != list_end (&sleep_list);
-       e = list_next (e))
-    {
-      struct thread *t = list_entry (e, struct thread, sleep_elem);
-      if (t->status == THREAD_BLOCKED && t->wake_tick <= ticks && t->wake_tick >= -1)
-      {
-        thread_unblock(t);
-      } else if (t->wake_tick > ticks) {
-        return;
-      }
-    }
-}
-
-/* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
-bool thread_sleeper_less(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED) {
-  return list_entry(e1,struct thread, sleep_elem)->wake_tick < list_entry(e2, struct thread, sleep_elem)->wake_tick;
-}
-
-
-
 /* task 2 implementation goes here */
 
 /* Thread gets a lock */
@@ -751,11 +711,6 @@ thread_update_priority (struct thread *t)
   intr_set_level (old_level);
 }
 
-
-
-bool priority_less(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED) {
-  return list_entry(e1,struct thread, elem)->priority_effective < list_entry(e2, struct thread, elem)->priority_effective;
-}
 
 
 /* task 3 implementation goes here */
@@ -813,6 +768,5 @@ refresh_priority_MLFQS (struct thread *t) {
       pri = PRI_MIN;
     }
     t->priority_effective = pri;
-    thread_yield ();
   }
 }
