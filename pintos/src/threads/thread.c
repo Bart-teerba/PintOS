@@ -228,6 +228,8 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  thread_yield();
+
   return tid;
 }
 
@@ -522,7 +524,6 @@ init_thread (struct thread *t, const char *name, int priority)
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
-  thread_yield();
   intr_set_level (old_level);
 }
 
@@ -689,7 +690,6 @@ thread_update_priority (struct thread *t)
   }
 
   t->priority_effective = max_priority;
-  thread_yield();
   intr_set_level (old_level);
 }
 
