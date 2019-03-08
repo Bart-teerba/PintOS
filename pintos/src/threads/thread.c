@@ -260,10 +260,11 @@ thread_block (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   thread_current ()->status = THREAD_BLOCKED;
-
+  enum intr_level old_level = intr_disable ();
   /* Insert thread into sleep_list with thread_sleeper_more, because we want to put small elements in the front */
   list_insert_ordered (&sleep_list, &thread_current()->sleep_elem,
                        thread_sleeper_less, NULL);
+  intr_set_level (old_level);
   schedule ();
 }
 
@@ -284,9 +285,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  if (t->wake_tick >= -1) {
-    list_remove (&t->sleep_elem);
-  }
+  list_remove (&t->sleep_elem);
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -529,15 +528,7 @@ init_thread (struct thread *t, const char *name, int priority)
   ASSERT (name != NULL);
 
   memset (t, 0, sizeof *t);
-  t->status = THREAD_BLOCKED;
-  list_insert_ordered (&sleep_list, &thread_current()->sleep_elem,
-                       thread_sleeper_less, NULL);
-  strlcpy (t->name, name, sizeof t->name);
-  t->stack = (uint8_t *) t + PGSIZE;
-  if (!thread_mlfqs) {
-    t->priority_effective = priority;
-  }
-  t->magic = THREAD_MAGIC;
+  old_level = intr_disable ();
 
   /* Add new variables */
   t->wake_tick = -2;        /* initialize wake_tick of each thread as -2 while in init process*/
@@ -545,7 +536,17 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->locks);
   t->waiting_lock = NULL;
 
-
+  /* add it to sleep_list */
+  list_insert_ordered (&sleep_list, &t->sleep_elem,
+                       thread_sleeper_less, NULL);
+  intr_set_level (old_level);
+  t->status = THREAD_BLOCKED;
+  strlcpy (t->name, name, sizeof t->name);
+  t->stack = (uint8_t *) t + PGSIZE;
+  if (!thread_mlfqs) {
+    t->priority_effective = priority;
+  }
+  t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -577,7 +578,9 @@ next_thread_to_run (void)
     return idle_thread;
   }
   struct list_elem *thread_elem = list_max (&ready_list, priority_less, NULL);
+  enum intr_level old_level = intr_disable ();
   list_remove(thread_elem);
+  intr_set_level (old_level);
   return list_entry (thread_elem, struct thread, elem);
 }
 
@@ -685,7 +688,7 @@ void thread_sleep_foreach (int64_t ticks)
        e = list_next (e))
     {
       struct thread *t = list_entry (e, struct thread, sleep_elem);
-      if (t->status == THREAD_BLOCKED && t->wake_tick <= ticks)
+      if (t->status == THREAD_BLOCKED && t->wake_tick <= ticks && t->wake_tick >= -1)
       {
         thread_unblock(t);
       } else if (t->wake_tick > ticks) {
