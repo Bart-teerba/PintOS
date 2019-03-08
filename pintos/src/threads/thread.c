@@ -366,7 +366,7 @@ thread_set_priority (int new_priority)
     return;
   }
 
-  enum intr_level old_level = intr_disable();
+  // enum intr_level old_level = intr_disable();
   struct thread *current_thread = thread_current();
   int old_priority = current_thread->priority_effective;
   current_thread->priority_ori = new_priority;
@@ -376,7 +376,7 @@ thread_set_priority (int new_priority)
     thread_yield();
   }
 
-  intr_set_level(old_level);
+  // intr_set_level(old_level);
 }
 
 /* Returns the current thread's priority. */
