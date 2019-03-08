@@ -236,6 +236,9 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  /* set wake_tick = -1 to distinguish from init progress when wake_tick = -2 */
+  t->wake_tick = -1;
+
   /* Add to run queue. */
   thread_unblock (t);
 
@@ -281,7 +284,9 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_remove (&t->sleep_elem);
+  if (t->wake_tick >= -1) {
+    list_remove (&t->sleep_elem);
+  }
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -525,6 +530,8 @@ init_thread (struct thread *t, const char *name, int priority)
 
   memset (t, 0, sizeof *t);
   t->status = THREAD_BLOCKED;
+  list_insert_ordered (&sleep_list, &thread_current()->sleep_elem,
+                       thread_sleeper_less, NULL);
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   if (!thread_mlfqs) {
@@ -533,7 +540,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
   /* Add new variables */
-  t->wake_tick = -1;        /* initialize wake_tick of each thread */
+  t->wake_tick = -2;        /* initialize wake_tick of each thread as -2 while in init process*/
   t->priority_ori = priority;
   list_init(&t->locks);
   t->waiting_lock = NULL;
