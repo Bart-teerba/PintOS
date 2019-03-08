@@ -84,10 +84,18 @@ void refresh_load_avg (void);
 void refresh_recent_cpu (void);
 void refresh_priority_MLFQS (struct thread *t);
 
+/* Addition */
 
-bool priority_less(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED) {
-  return list_entry(e1,struct thread, elem)->priority_effective < list_entry(e2, struct thread, elem)->priority_effective;
-}
+/* List of sleeping threads */
+static struct list sleep_list;
+
+/* Check if threads have to be wakened for all threads in sleep_list */
+void thread_sleep_foreach (int64_t ticks);
+
+/* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
+bool thread_sleeper_less(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED);
+
+
 
 
 
@@ -113,6 +121,9 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+
+  /* Modify: init sleep_list */
+  list_init (&sleep_list);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -246,6 +257,10 @@ thread_block (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   thread_current ()->status = THREAD_BLOCKED;
+
+  /* Insert thread into sleep_list with thread_sleeper_more, because we want to put small elements in the front */
+  list_insert_ordered (&sleep_list, &thread_current()->sleep_elem,
+                       thread_sleeper_less, NULL);
   schedule ();
 }
 
@@ -266,6 +281,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+  list_remove(&t->sleep_elem);
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -517,9 +533,11 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
   /* Add new variables */
+  t->wake_tick = -1;        /* initialize wake_tick of each thread */
   t->priority_ori = priority;
   list_init(&t->locks);
   t->waiting_lock = NULL;
+
 
 
   old_level = intr_disable ();
@@ -646,6 +664,36 @@ allocate_tid (void)
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 
+
+/* tast 1 implementation goes here */
+
+/* Apply func for all threads in sleep_list */
+void thread_sleep_foreach (int64_t ticks)
+{
+  struct list_elem *e;
+
+  ASSERT (intr_get_level () == INTR_OFF);
+
+  for (e = list_begin (&sleep_list); e != list_end (&sleep_list);
+       e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, sleep_elem);
+      if (t->status == THREAD_BLOCKED && t->wake_tick >= ticks)
+      {
+        thread_unblock(t);
+      } else if (t->wake_tick < ticks) {
+        return;
+      }
+    }
+}
+
+/* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
+bool thread_sleeper_less(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED) {
+  return list_entry(e1,struct thread, sleep_elem)->wake_tick < list_entry(e2, struct thread, sleep_elem)->wake_tick;
+}
+
+
+
 /* task 2 implementation goes here */
 
 /* Thread gets a lock */
@@ -693,6 +741,11 @@ thread_update_priority (struct thread *t)
   intr_set_level (old_level);
 }
 
+
+
+bool priority_less(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED) {
+  return list_entry(e1,struct thread, elem)->priority_effective < list_entry(e2, struct thread, elem)->priority_effective;
+}
 
 
 /* task 3 implementation goes here */

@@ -114,6 +114,9 @@ struct thread
     struct list locks;                  /* Stores all the needed locks */
     int priority_ori;                  /* Stores the original priority of the thread */
 
+    int64_t wake_tick;                   /* Amount of time before wake */
+    struct list_elem sleep_elem;         /* List element for the sleeping list. */
+
   };
 
 /* If false (default), use round-robin scheduler.
@@ -164,4 +167,10 @@ void increace_recent_cpu_by1 (void);
 void refresh_load_avg (void);
 void refresh_recent_cpu (void);
 void refresh_priority_MLFQS (struct thread *t);
+
+/* Apply function for all threads in sleep_list */
+void thread_sleep_foreach(int64_t ticks);
+/* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
+bool thread_sleeper_less(const struct list_elem *e1, const struct list_elem *e2, void *aux);
+
 #endif /* threads/thread.h */
