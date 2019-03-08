@@ -190,7 +190,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
       thread_foreach(&refresh_priority_MLFQS, NULL);
     }
   }
-  // thread_sleep_foreach (ticks);
+  thread_sleep_foreach (ticks);
   intr_set_level (old_level);
   thread_tick ();
 }
