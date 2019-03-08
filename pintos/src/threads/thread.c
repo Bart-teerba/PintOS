@@ -669,8 +669,8 @@ thread_rm_lock (struct lock *lock)
 {
   enum intr_level old_level = intr_disable ();
   list_remove (&lock->elem);
-  intr_set_level (old_level);
   thread_update_priority (thread_current ());
+  intr_set_level (old_level);
 }
 
 /* Update priority, merged with thread_donate_priority. */
