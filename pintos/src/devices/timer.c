@@ -93,8 +93,7 @@ timer_sleep (int64_t t)
 
   ASSERT (intr_get_level () == INTR_ON);
   enum intr_level old_level = intr_disable();
-  struct thread *current_thread = thread_current();
-  current_thread->wake_tick = t + ticks;
+  thread_current()->wake_tick = t + ticks;
   thread_block();
   intr_set_level (old_level);
 }
@@ -174,7 +173,7 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
-      enum intr_level old_level = intr_disable ();
+  enum intr_level old_level = intr_disable ();
   if (thread_mlfqs) {
 
     /* increase the running thread's recent cpu by one. */
@@ -191,7 +190,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
       thread_foreach(&refresh_priority_MLFQS, NULL);
     }
   }
-  thread_sleep_foreach (ticks);
+  // thread_sleep_foreach (ticks);
   intr_set_level (old_level);
   thread_tick ();
 }
