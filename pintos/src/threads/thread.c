@@ -281,7 +281,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_remove(&t->sleep_elem);
+  list_remove (&t->sleep_elem);
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -678,10 +678,10 @@ void thread_sleep_foreach (int64_t ticks)
        e = list_next (e))
     {
       struct thread *t = list_entry (e, struct thread, sleep_elem);
-      if (t->status == THREAD_BLOCKED && t->wake_tick >= ticks)
+      if (t->status == THREAD_BLOCKED && t->wake_tick <= ticks)
       {
         thread_unblock(t);
-      } else if (t->wake_tick < ticks) {
+      } else if (t->wake_tick > ticks) {
         return;
       }
     }
