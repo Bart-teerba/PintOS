@@ -750,5 +750,6 @@ refresh_priority_MLFQS (struct thread *t) {
       pri = PRI_MIN;
     }
     t->priority_effective = pri;
+    thread_yield ();
   }
 }
