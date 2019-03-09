@@ -112,10 +112,10 @@ struct thread
     /* Add new variables */
     struct lock *waiting_lock;          /* A lock acuired by the thread */
     struct list locks;                  /* Stores all the needed locks */
-    int priority_ori;                  /* Stores the original priority of the thread */
+    int priority_ori;                   /* Stores the original priority of the thread */
 
-    int64_t wake_tick;                   /* Amount of time before wake */
-    struct list_elem sleep_elem;         /* List element for the sleeping list. */
+    int64_t wake_tick;                  /* Amount of time before wake */
+    struct list_elem sleep_elem;        /* List element for the sleeping list. */
 
   };
 
