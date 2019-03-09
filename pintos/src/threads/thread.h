@@ -165,12 +165,12 @@ void thread_sleep_foreach (int64_t ticks);
 void thread_get_lock (struct lock *);
 void thread_rm_lock (struct lock *);
 void thread_update_priority (struct thread *);
-bool priority_less(const struct list_elem *e1, const struct list_elem *e2, void *aux);
+bool priority_less (const struct list_elem *e1, const struct list_elem *e2, void *aux);
 
 /* task 3 */
 void increace_recent_cpu_by1 (void);
 void refresh_load_avg (void);
-void recent_cpu_helper(struct thread* t, fixed_point_t *factor);
+void recent_cpu_helper (struct thread* t, fixed_point_t *factor);
 void refresh_recent_cpu (void);
 void refresh_priority_MLFQS (struct thread *t);
 

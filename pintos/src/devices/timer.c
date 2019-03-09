@@ -89,7 +89,8 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t t)
 {
-  if (t < 0) {
+  if (t < 0) 
+  {
     return;
   }
   ASSERT (intr_get_level () == INTR_ON);
@@ -175,20 +176,22 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   enum intr_level old_level = intr_disable ();
-  if (thread_mlfqs) {
-
+  if (thread_mlfqs) 
+  {
     /* increase the running thread's recent cpu by one. */
-    increace_recent_cpu_by1();
+    increace_recent_cpu_by1 ();
 
     /* Update load average and recent cpu*/
-    if (ticks % TIMER_FREQ == 0) {
-      refresh_load_avg();
-      refresh_recent_cpu();
+    if (ticks % TIMER_FREQ == 0) 
+    {
+      refresh_load_avg ();
+      refresh_recent_cpu ();
     }
 
     /* Update priority based on ticks */
-    if (ticks % 4 == 0) {
-      thread_foreach(&refresh_priority_MLFQS, NULL);
+    if (ticks % 4 == 0) 
+    {
+      thread_foreach (&refresh_priority_MLFQS, NULL);
     }
   }
   thread_sleep_foreach (ticks);
