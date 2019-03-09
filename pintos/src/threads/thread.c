@@ -74,6 +74,16 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+/* task 1 */
+/* List of sleeping threads */
+static struct list sleep_list;
+/* Check if threads have to be wakened for all threads in sleep_list */
+void thread_sleep_foreach (int64_t ticks);
+/* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
+bool thread_sleeper_less(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED);
+
+
+/* task 2 */
 void thread_get_lock (struct lock *);
 void thread_rm_lock (struct lock *);
 void thread_update_priority (struct thread *);
