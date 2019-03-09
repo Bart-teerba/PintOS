@@ -113,13 +113,14 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)) {
+  if (!list_empty (&sema->waiters)) 
+  {
     struct list_elem *thread_elem = list_max (&sema->waiters, priority_less, NULL);
-    list_remove(thread_elem);
+    list_remove (thread_elem);
     thread_unblock (list_entry (thread_elem, struct thread, elem));
   }
   sema->value++;
-  thread_yield();
+  thread_yield ();
   intr_set_level (old_level);
 }
 
@@ -202,10 +203,12 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
-  if (lock->holder != NULL && !thread_mlfqs) {
+  if (lock->holder != NULL && !thread_mlfqs) 
+  {
     current_thread->waiting_lock = lock;
     l = lock;
-    while (l && current_thread->priority_effective > l->max_priority) {
+    while (l && current_thread->priority_effective > l->max_priority) 
+    {
       l->max_priority = current_thread->priority_effective;
       thread_update_priority (l->holder);
       l = l->holder->waiting_lock;
@@ -217,13 +220,14 @@ lock_acquire (struct lock *lock)
   enum intr_level old_level = intr_disable();
 
   current_thread = thread_current();
-  if (!thread_mlfqs) {
+  if (!thread_mlfqs) 
+  {
     current_thread->waiting_lock = NULL;
     lock->max_priority = current_thread->priority_effective;
-    thread_get_lock(lock);
+    thread_get_lock (lock);
   }
   lock->holder = current_thread;
-  intr_set_level(old_level);
+  intr_set_level (old_level);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -242,7 +246,9 @@ lock_try_acquire (struct lock *lock)
 
   success = sema_try_down (&lock->semaphore);
   if (success)
+  {
     lock->holder = thread_current ();
+  }
   return success;
 }
 
@@ -257,7 +263,8 @@ lock_release (struct lock *l)
   ASSERT (l != NULL);
   ASSERT (lock_held_by_current_thread (l));
 
-  if (!thread_mlfqs) {
+  if (!thread_mlfqs) 
+  {
     thread_rm_lock (l);
   }
 
@@ -346,11 +353,11 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
 
-  if (!list_empty (&cond->waiters)) {
+  if (!list_empty (&cond->waiters)) 
+  {
     struct list_elem *sema_elem = list_max (&cond->waiters, cond_sema_priority_less, NULL);
     list_remove(sema_elem);
-    sema_up (&list_entry (sema_elem,
-                          struct semaphore_elem, elem)->semaphore);
+    sema_up (&list_entry (sema_elem, struct semaphore_elem, elem)->semaphore);
   }
 }
 
@@ -367,7 +374,9 @@ cond_broadcast (struct condition *cond, struct lock *lock)
   ASSERT (lock != NULL);
 
   while (!list_empty (&cond->waiters))
+  {
     cond_signal (cond, lock);
+  }
 }
 
 
@@ -375,7 +384,8 @@ cond_broadcast (struct condition *cond, struct lock *lock)
 bool
 lock_priority_less (const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED)
 {
-  return list_entry (e1, struct lock, elem)->max_priority < list_entry (e2, struct lock, elem)->max_priority;
+  return list_entry (e1, struct lock, elem)->max_priority <  \
+         list_entry (e2, struct lock, elem)->max_priority;
 }
 
 /* cond sema comparation function */
@@ -384,5 +394,9 @@ cond_sema_priority_less (const struct list_elem *e1, const struct list_elem *e2,
 {
   struct semaphore_elem *sa = list_entry (e1, struct semaphore_elem, elem);
   struct semaphore_elem *sb = list_entry (e2, struct semaphore_elem, elem);
-  return list_entry(list_max(&sa->semaphore.waiters, priority_less, NULL), struct thread, elem)->priority_effective < list_entry(list_max(&sb->semaphore.waiters, priority_less, NULL), struct thread, elem)->priority_effective;
+  int left_priority = list_entry (list_max (&sa->semaphore.waiters, priority_less, NULL), 
+                                  struct thread, elem)->priority_effective;
+  int right_priority = list_entry (list_max (&sb->semaphore.waiters, priority_less, NULL), 
+                                   struct thread, elem)->priority_effective;
+  return left_priority < right_priority; 
 }
