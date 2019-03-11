@@ -19,7 +19,7 @@ Final Report for Project 1: Threads
 <br />
 
 #### thread.h
-```{c}
+```c
 void thread_sleep_foreach (thread_action_func *, void *aux);       /* Apply func for all threads in sleep_list */
 /* Combined the two funcitons */
 /* Reason: higher performance
@@ -32,7 +32,7 @@ void thread_sleep_foreach (thread_action_func *, void *aux);       /* Apply func
 
 
 #### thread.c
-```{c}
+```c
 /* Comparator to sort sleep_list depending on wakeTick, uses list_insert_ordered */
 bool thread_sleeper_more(const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED){...}
 /* Changed the name into thread_sleeper_less to reflect the actual implementation */
