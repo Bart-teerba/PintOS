@@ -11,10 +11,10 @@ Final Report for Project 1: Threads
 
 
 
-# Changes in Code
+## Changes in Code
 
 
-## Task 1: Eﬃcient Alarm Clock
+### Task 1: Eﬃcient Alarm Clock
 
 <br />
 
@@ -68,7 +68,7 @@ In `thread_block` and `thread_unblock`, we use different logics for threads whic
 <br />
 
 
-## Task 2: Priority Scheduler
+### Task 2: Priority Scheduler
 
 <br />
 
@@ -109,7 +109,7 @@ In `thread_block` and `thread_unblock`, we use different logics for threads whic
 <br />
 
 
-## Task 3: Multi-level Feedback Queue Scheduler (MLFQS)
+### Task 3: Multi-level Feedback Queue Scheduler (MLFQS)
 
 <br />
 
@@ -119,7 +119,7 @@ In `thread_block` and `thread_unblock`, we use different logics for threads whic
 
 
 
-# Reﬂection
+## Reﬂection
  
 -  A reﬂection on the project – what exactly did each member do? What went well, and what could be improved?
 
