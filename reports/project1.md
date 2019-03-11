@@ -74,7 +74,6 @@ In `thread_block` and `thread_unblock`, we use different logics for threads whic
 
 #### In thread.h
 - Merged `thread_donate_priority` with `thread_update_priority` because the ready_list is no longer sorted and it does not have to resort after a thread’s priority change.
-
 - `thread_priority_less` remains unchanged, but now it serves for  `list_max` instead of `list_insert_ordered` because  `ready_list` is no longer sorted.
   
 #### In sync.h
@@ -85,15 +84,12 @@ In `thread_block` and `thread_unblock`, we use different logics for threads whic
 - Keep all lists unsorted except for `sleep_list`. The insertion occurs in `thread_block`.
   
 #### In sync.c
-- `&sema→waiters` is no longer sorted. Meanwhile,  `list_max` using `cond_sema_priority_less` and then remove the corresponding `sema_elem` instead of `list_pop_front` directly.
-  
+- `&sema→waiters` is no longer sorted. Meanwhile,  `list_max` using `cond_sema_priority_less` and then remove the corresponding `sema_elem` instead of `list_pop_front` directly.  
 - Changed the name of `lock_acquire` to `thread_get_lock`
-  
 - In `cond_signal`
   - Simply get the max `sema_elem` using `list_max` with `cond_sema_priority_less` instead of sorting the whole list.
   - Pop the `sema_elem` from the list.
-  
-<br />
+
 
 #### Section 5 -- Priority Scheduling for semaphores and locks:
 - To implement this, we just have to sort `&sema->waiters` in `sema_up` according to `cond_sema_priority_less` function, which compares the `priority_effective` of the corresponding thread of two semas.
@@ -117,7 +113,7 @@ In `thread_block` and `thread_unblock`, we use different logics for threads whic
   - A series of function calls need to use the `ticks` variable inside `timer.c`.
   - The priority maintenance should be done by CPU, so it makes more sense to put the calls inside `timer.c` instead of `threads.tick()` of `threads`
 
-
+<br />
 
 ## Reﬂection
  
@@ -129,17 +125,17 @@ Generally, this is a collaborative team where all members are proactive. Members
 
 Divided team into three parts, each part takes charge of one task. Depending on the complexity of code, each part contains different number of members. Task 1 is taken by Bart and Jerry, Task 2 is taken by Jerry and Eric, and Task 3 is taken by Richard. 
 
-The project is divided into four stages:
+#### The project is divided into four stages:
 1. Preparation: including reading the case, finding and sharing available resources, divid work and go through the schedule
 2. Design Doc write up: each part write up individually and then merge it by going through together
 3. Coding: individually so the whole project works, then merge by going through together
 3. Reflection and moving forward: host a meeting that reflects on the last project while kicking off the coming project
 
-Good traits:
+#### Good traits:
 1. Limited the number of coders: this is made possible by a high fidelity of design; when coding up, all members are in one physical location
 2. Great internal communication
 
-Improvements:
+#### Improvements:
 1. Need to start earlier so the team will have more time to teach each other the tasks they are responsible for
 2. Should spend more time on connecting the project to lecture content so it enhances the effectiveness of studying
 3. Better coordination of time and location
