@@ -21,14 +21,11 @@ Final Report for Project 1: Threads
 #### thread.h
 ```c
 void thread_sleep_foreach (thread_action_func *, void *aux);       /* Apply func for all threads in sleep_list */
-/* Combined the two funcitons */
+/* Combined unblock_check with thread_sleep_foreach */
 /* Reason: higher performance
  * have to halt in the while loop in thread_sleep_foreach because we are using a sorted sleep_list
  * the functionality of thread_sleep_foreach is limitedly defined */
 ```
-
-- Merged `thread_donate_priority` with `thread_update_priority` because the ready_list is no longer sorted and it does not have to resort after a thread’s priority change.
-- `thread_priority_less` remains unchanged, but now it serves for  `list_max` instead of `list_insert_ordered` because  `ready_list` is no longer sorted.
 
 
 #### thread.c
@@ -49,8 +46,8 @@ In function yield_create()
 thread_block (void){...}
 /* Checked a thread's wake_tick before inserting it into sleep_list
  * threads blocked by timer_sleep have wake_tick >= 0
- * others have wake_tick == -1 
-*/
+ * others have wake_tick == -1 */
+ 
 /* Reason: Avoid putting a thread that is blocked  
  * elsewhere into sleep_list, since it is not sleeping */
 
@@ -84,21 +81,20 @@ In `thread_block` and `thread_unblock`, we use different logics for threads whic
 - Keep all lists unsorted except for `sleep_list`. The insertion occurs in `thread_block`.
   
 #### In sync.c
-- `&sema→waiters` is no longer sorted. Meanwhile,  `list_max` using `cond_sema_priority_less` and then remove the corresponding `sema_elem` instead of `list_pop_front` directly.  
-- Changed the name of `lock_acquire` to `thread_get_lock`
+- `&sema->waiters` is no longer sorted. Meanwhile,  `list_max` using `cond_sema_priority_less` and then remove the corresponding `sema_elem` instead of `list_pop_front` directly.  
 - In `cond_signal`
-  - Simply get the max `sema_elem` using `list_max` with `cond_sema_priority_less` instead of sorting the whole list.
-  - Pop the `sema_elem` from the list.
+ - - Simply get the max `sema_elem` using `list_max` with `cond_sema_priority_less` instead of sorting the whole list.
+ - - Remove the `sema_elem` from the list.
 
 
 #### Section 5 -- Priority Scheduling for semaphores and locks:
-- To implement this, we just have to sort `&sema->waiters` in `sema_up` according to `cond_sema_priority_less` function, which compares the `priority_effective` of the corresponding thread of two semas.
-  - As explained above, use `list_max` and `list_remove` instead of sorting the whole list.
+- In the original design: "To implement this, we just have to sort `&sema->waiters` in `sema_up` according to `cond_sema_priority_less` function, which compares the `priority_effective` of the corresponding thread of two semas."
+ - - As explained above, use `list_max` and `list_remove` instead of sorting the whole list.
   
   
 #### Section 6 -- Priority Scheduling for condition variables:
 
-- Similar to Section 5, we just have to sort `&cond->waiters` in `cond_signal` according to `cond_sema_priority_less` function, which compares the `priority_effective` of the corresponding thread of two conditional variables.
+- In the original design: "Similar to Section 5, we just have to sort `&cond->waiters` in `cond_signal` according to `cond_sema_priority_less` function, which compares the `priority_effective` of the corresponding thread of two conditional variables."
   - As explained above, use `list_max` and `list_remove` instead of sorting the whole list.
 
 
