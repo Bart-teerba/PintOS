@@ -19,17 +19,55 @@ Design Document for Project 2: User Programs
 
 ### 1. Data structures and functions
 
+
 <br />
+**process.c**
+
+- Initialize three new variables in `load` function: `argv`, `argc`, `addresses`.
+- - When parsing `file_name` and spliting it into arguments as `char*` by space, store the arguments in `argv`.
+- - Store the total number of arguments as `argc`.
+- - Update addresses when `memset` arguments in memory. 
+
+```c
+bool load (const char *file_name, void (**eip) (void), void **esp) {
+  ...
+  char** argv;              /* stores the pointers of arguments as char*. */
+  int argc;                 /* stores the total number of arguments. */
+  char* addresses;          /* stores the addresses of arguments. */
+  ...
+}
+```
 
 ### 2. Algorithms
+
+
 <br />
+
+- After initializing three new variables in `load`, parse `file_name` into `argv` using `strtok_r()`. At the same time, increment `argc` from 0 while parsing `file_name` so that `argc` equals the total number of arguments. Note that `argv` has maximum size 256.
+- Set `file_name` as `argv[0]` which is the name of excutable if it exists.
+- After `setup_stack(esp)`, use while loop to `memset` arguments stored in `argv` backward, and decrease `esp` at each step. At same time, store these `esp` into `addresses`.
+- After storing all arguments in memory, use `word_align` to round `sp` downward to a number of multiple of 4.
+- Before storing the addresses of arguments in memory, first `memset` 0 to represent the end of `argv`. Then, `memset` addresses stored in `addresses` backward, which are the addresses of arguments stored in `argv`.
+- Store `argv[0]`'s address as `argv` in stack, which is current `sp + 4`.
+- Store `argc`.
+- Store 0 as "return address" and set `esp` equal to the address of "return address".
 
 ### 3. Synchronization
 
 
 <br />
+There is no synchronization issues.
+
 
 ### 4. Rationale
+
+
+<br />
+
+- Change `file_name` in `load` so that there is no problem passing argument between different functions like `process_execute`, `start_process` and `load`. 
+- Parse `file_name` before `filesys_open` so that we open the correct excutable file whose name does not contain any argument.
+- Store arguments and addresses after `setup_stack` so that it is made sure that the page has already been set up.
+- Follow the instruction in "3.1.9" when setting memory so that the memory is set correctly and the stack pointer is at return address.
 
 
 <br />
