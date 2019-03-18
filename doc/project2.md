@@ -78,10 +78,63 @@ Design Document for Project 2: User Programs
 
 ### 1. Data structures and functions
 
+process.c
+
+```c
+/* Modify. */
+bool load (const char *file_name, void (**eip) (void), void **esp)
+{
+    ...
+    /* add file_deny_write() call at the beginning and file_allow_write() call in done. */
+    ...
+}
+```
+
+syscall.c
+
+```c
+/* Add global variable. */
+struct lock filesys_lock;
+
+/* Modify. */
+/* Add the corresponding file operation call according to the input System call number (SYS_OPEN, SYS_READ...). */
+syscall_handler (struct intr_frame *f UNUSED) 
+{
+	...    
+}
+
+/* Implement. See algorithms for details. */
+bool create (const char *file, unsigned initial size) {...};
+bool remove (const char *file) {...};
+int open (const char *file) {...};
+int filesize (int fd) {...};
+int read (int fd, void *buffer, unsigned size) {...};
+int write (int fd, const void *buffer, unsigned size) {...};
+void seek (int fd, unsigned position) {...};
+unsigned tell (int fd) {...};
+void close (int fd);
+```
+
+thread.h
+
+```c
+/* Add struct fields. */
+struct thread {
+    ...
+  	struct list fd_list  // Stores fd to file* mapping
+  	int fd_numbers;      //  Used for assigning fd
+  	file* executingFile; // Used for re-enabling writes when process finishes executing
+  	...
+}
+```
+
+
+
+
+
 <br />
 
 ### 2. Algorithms
-
 
 
 
@@ -89,7 +142,8 @@ Design Document for Project 2: User Programs
 
 ### 3. Synchronization
 
-
+- We use a global lock `filesys_lock` to ensure thread-safe file operation syscalls. In order to make a file operation syscall, a thread has to acquire the global lock first, and will only able to go forward if the global lock has been released by any other threads doing file operations. 
+- To prevent any modification on the executable on disk when a user processing is running, we call `file_deny_write` during the creation phase of a user process, and call `file_allow_write` when the user process terminates.
 
 
 <br />
