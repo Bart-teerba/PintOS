@@ -20,7 +20,6 @@ Design Document for Project 2: User Programs
 ### 1. Data structures and functions
 
 
-<br />
 **process.c**
 
 - Initialize three new variables in `load` function: `argv`, `argc`, `addresses`.
@@ -31,17 +30,18 @@ Design Document for Project 2: User Programs
 ```c
 bool load (const char *file_name, void (**eip) (void), void **esp) {
   ...
-  char** argv;              /* stores the pointers of arguments as char*. */
-  int argc;                 /* stores the total number of arguments. */
-  char* addresses;          /* stores the addresses of arguments. */
+  /* Addition */
+  
+  char** argv;              /* Stores the pointers of arguments as char*. */
+  int argc;                 /* Stores the total number of arguments. */
+  char* addresses;          /* Stores the addresses of arguments. */
   ...
 }
 ```
+<br />
 
 ### 2. Algorithms
 
-
-<br />
 
 - After initializing three new variables in `load`, parse `file_name` into `argv` using `strtok_r()`. At the same time, increment `argc` from 0 while parsing `file_name` so that `argc` equals the total number of arguments. Note that `argv` has maximum size 256.
 - Set `file_name` as `argv[0]` which is the name of excutable if it exists.
@@ -52,17 +52,17 @@ bool load (const char *file_name, void (**eip) (void), void **esp) {
 - Store `argc`.
 - Store 0 as "return address" and set `esp` equal to the address of "return address".
 
+<br />
+
 ### 3. Synchronization
 
 
-<br />
 There is no synchronization issues.
 
+<br />
 
 ### 4. Rationale
 
-
-<br />
 
 - Change `file_name` in `load` so that there is no problem passing argument between different functions like `process_execute`, `start_process` and `load`. 
 - Parse `file_name` before `filesys_open` so that we open the correct excutable file whose name does not contain any argument.
@@ -84,25 +84,176 @@ There is no synchronization issues.
 ### 1. Data structures and functions
 
 
+**thread.h**
+```c
+/* Addition */
+
+/* Stores the wait status of a thread. Can be accessed by its parent. */
+struct wait_status {
+  struct list_elem elem;            /* 'children' list element. */
+  struct lock lock;                 /* Protects ref_cnt. */
+  int ref_cnt;                      /* 2 = child and parent both alive, 
+                                       1 = either child or parent alive, 
+                                       0 = child and parent both dead. */
+  tid_t tid;                        /* Child thread id. */        
+  int exit_code;                    /* Child exit code, if dead. */
+  struct semaphore dead;            /* 0 = child alive,
+                                       1 = child dead. */
+};
+
+struct thread {
+  ...
+  struct wait_status *wait_status;    /* This process’s wait state. */
+  struct list children;               /* A list of wait status of children. */
+  bool load_success;            /* True = load successfully,
+                                         False = load unsuccessfully. */
+  semaphore child_load_sema;          /* Semaphore to make sure child has finished loading */
+  semaphore parent_check_load_sema;   /* Semaphore to make sure parent has viewed child's loading status. */
+  ...
+}
+
+/* find a thread with given tid and return its thread pointer. */
+struct thread *get_thread_by_tid(tid_t tid);
+
+/* init function for wait_status struct. */
+void wait_status_init (struct wait_status *, tid_t tid);
+```
+
+**thread.c**
+```c
+/* Addition */
+
+/* find a thread with given tid and return its thread pointer. */
+struct thread *get_thread_by_tid(tid_t tid){...}
+
+/* init function for wait_status struct. */
+void wait_status_init (struct wait_status *ws, tid_t tid){
+  lock_init (&ws->lock);
+  ws->ref_cnt = 2;
+  ws->tid = tid;
+  ws-exit_code = NULL;
+  sema_init (&ws->dead, 0);
+}
+
+/* Modification */
+
+static void init_thread (struct thread *t, const char *name, int priority) {
+  ...
+  wait_status_init(&t->wait_status, t->tid);
+  list_init(&t->children);
+  sema_init(&t->child_load_sema, 0)
+  sema_init(&parent_check_load_sema, 0)
+  ...
+}
+```
+
+**userprog/syscall.c**
+```c
+/* Modification */
+
+/* Handle system call functions and use validate_addr to check if the address is valid. */
+static void syscall_handler (struct intr_frame *f UNUSED); 
+
+/* Addition */
+
+/* If the address is valid, return it. Otherwise exit(1). */
+void *validate_addr (void *ptr); 
+```
+
+**process.c**
+```c
+/* Modification */
+tid_t process_execute (const char *file_name) {...}
+static void start_process (void *file_name_) {...}
+int process_wait (tid_t child_tid) {...}
+process_exit (void) {...}
+```
+
+**exception.c**
+```c
+kill(struct intr_frame *f);       /* sema_up() sema in wait_status before thread_exit(). */
+```
+
 
 <br />
 
 ### 2. Algorithms
 
+**Preparation**
+
+**halt**
+
+- In `syscall_handler`, call `shutdown_power_off()` to terminate Pintos if `args[0] == SYS_HALT`.
+
+**practice**
+
+- In `syscall_handler`, set `f->eax` as `args[1] + 1` if `args[0] == SYS_PRACTICE`.
+
+**exec**
+
+In `process_execute`
+
+- `sema_down` `child_load_sema` in child thread. 
+- After `sema_down`, check `load_success` which represent whether a child has been loaded successfully or not. 
+- If it is `True`, return `tid`. Else, return `-1`. 
+- Before returning, `sema_up` `parent_check_load_sema` in child thread to wake it up. 
+- Push child's `wait_status` to `children` list in the current thread if the child has been successfully loaded. 
+- Child thread can be acquired by function `get_thread_by_tid` implemented in `thread.c`.
+
+In `start_process`
+
+- Set `load_success` as success after `load` has finished. 
+- Then `sema_up` `child_load_sema` in the current thread to wake its parent up. 
+- Immediately, `sema_down` `parent_check_load_sema` to make sure the parent has checked child's load status before move on. 
+
+**wait**
+
+In `process_wait`
+
+- Iterate through `children` list in current thread and look for the thread which has the same tid as the one provided.
+- If no thread can match the given tid, return -1
+- If the thread exists, `sema_down` `dead` in child's `wait_status`.
+- After `sema_down`, init a new local variable `exit_code` equal to `exit_code` in child's `wait_status`. 
+- Acquire `lock` in child's `wait_status` and decrease `ref_cnt` in child's `wait_status` by 1 following by a `release_lock`. 
+- If child's `ref_cnt` in `wait_status` equal to 0, free child's `wait_status` and remove `elem` which represents child's `wait_status` from list. 
+- Return local variable `exit_code`.
+
+**exit vs wait**
+
+In `process_exit`
+
+- Acquire `lock` in `wait_status` of current thread and decrease `ref_cnt` in `wait_status` of current thread by 1. Don't release lock here.
+- If `ref_cnt` in `wait_status` of current thread equal to 0, release lock, free its `wait_status` and remove `elem` which represents its `wait_status` from list. Else, just release lock.
+- Iterate through `children` list in current thread.
+- For each child thread, acquire `lock` in its `wait_status` and decrease `ref_cnt` in its `wait_status` by 1. Don't release lock here. 
+- If child's `ref_cnt` in `wait_status` equal to 0, release lock, free child's `wait_status` and remove `elem` which represents child's `wait_status` from list. Else, just release lock.
+- `sema_up` `dead` in current thread if the current `wait_status` still exists.
 
 
 <br />
 
 ### 3. Synchronization
 
+**exec**
 
+- Two semaphores `child_load_sema` and `parent_check_load_sema` are designed to synchronize `process_execute` (which runs in the parent thread) and `start_process` (which runs in the child thread). 
+- - `child_load_sema` is to make sure that the logic check of child's load status in parent's `process_execute` happens after loading child thread in `start_process`.
+- - `parent_check_load_sema` is to make sure that parent process can still get child's `load_success` even if child process has a higher priority than parent thread.
+
+- Aqcuire lock and release lock before and after editing `ref_cnt` to make sure `ref_cnt` can only be edited by one thread at a time.
 
 
 <br />
 
 ### 4. Rationale
 
+For wait:
 
+- If parent exit first: parent would decrease all its children's `ref_cnt` by 1 to represent that it has exited already. If a child thread's `ref_cnt` is 0, it means that both of its parent and itself has exited. Thus, we free its `wait_status`.
+
+- If child exit first: child would decrease its `ref_cnt` by 1 to represent that it has exited already. It also store its exit code in its `wait_status.exit_code`. Thus, its parent can access its exit code later when calling wait on it.
+
+- If a parent wait for a child while a child is still running: it has to `sema_down` child's `dead` sema first when child's `dead` sema is only `sema_up`ed when it exits. Thus it makes sure that the parent thread will wait until the child thread finishes.
 
 <br />
 <br />

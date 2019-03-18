@@ -204,7 +204,7 @@ $(document).ready(function () {
 <p><br /></p>
 <div id="data-structures-and-functions" class="section level3">
 <h3>1. Data structures and functions</h3>
-<p><br /> <strong>process.c</strong></p>
+<p><strong>process.c</strong></p>
 <ul>
 <li>Initialize three new variables in <code>load</code> function: <code>argv</code>, <code>argc</code>, <code>addresses</code>.</li>
 <li><ul>
@@ -219,15 +219,17 @@ $(document).ready(function () {
 </ul>
 <pre class="c"><code>bool load (const char *file_name, void (**eip) (void), void **esp) {
   ...
-  char** argv;              /* stores the pointers of arguments as char*. */
-  int argc;                 /* stores the total number of arguments. */
-  char* addresses;          /* stores the addresses of arguments. */
+  /* Addition */
+  
+  char** argv;              /* Stores the pointers of arguments as char*. */
+  int argc;                 /* Stores the total number of arguments. */
+  char* addresses;          /* Stores the addresses of arguments. */
   ...
 }</code></pre>
+<p><br /></p>
 </div>
 <div id="algorithms" class="section level3">
 <h3>2. Algorithms</h3>
-<p><br /></p>
 <ul>
 <li>After initializing three new variables in <code>load</code>, parse <code>file_name</code> into <code>argv</code> using <code>strtok_r()</code>. At the same time, increment <code>argc</code> from 0 while parsing <code>file_name</code> so that <code>argc</code> equals the total number of arguments. Note that <code>argv</code> has maximum size 256.</li>
 <li>Set <code>file_name</code> as <code>argv[0]</code> which is the name of excutable if it exists.</li>
@@ -238,14 +240,15 @@ $(document).ready(function () {
 <li>Store <code>argc</code>.</li>
 <li>Store 0 as “return address” and set <code>esp</code> equal to the address of “return address”.</li>
 </ul>
+<p><br /></p>
 </div>
 <div id="synchronization" class="section level3">
 <h3>3. Synchronization</h3>
-<p><br /> There is no synchronization issues.</p>
+<p>There is no synchronization issues.</p>
+<p><br /></p>
 </div>
 <div id="rationale" class="section level3">
 <h3>4. Rationale</h3>
-<p><br /></p>
 <ul>
 <li>Change <code>file_name</code> in <code>load</code> so that there is no problem passing argument between different functions like <code>process_execute</code>, <code>start_process</code> and <code>load</code>.</li>
 <li>Parse <code>file_name</code> before <code>filesys_open</code> so that we open the correct excutable file whose name does not contain any argument.</li>
@@ -260,18 +263,156 @@ $(document).ready(function () {
 <p><br /></p>
 <div id="data-structures-and-functions-1" class="section level3">
 <h3>1. Data structures and functions</h3>
+<p><strong>thread.h</strong></p>
+<pre class="c"><code>/* Addition */
+
+/* Stores the wait status of a thread. Can be accessed by its parent. */
+struct wait_status {
+  struct list_elem elem;            /* 'children' list element. */
+  struct lock lock;                 /* Protects ref_cnt. */
+  int ref_cnt;                      /* 2 = child and parent both alive, 
+                                       1 = either child or parent alive, 
+                                       0 = child and parent both dead. */
+  tid_t tid;                        /* Child thread id. */        
+  int exit_code;                    /* Child exit code, if dead. */
+  struct semaphore dead;            /* 0 = child alive,
+                                       1 = child dead. */
+};
+
+struct thread {
+  ...
+  struct wait_status *wait_status;    /* This process’s wait state. */
+  struct list children;               /* A list of wait status of children. */
+  bool load_success;            /* True = load successfully,
+                                         False = load unsuccessfully. */
+  semaphore child_load_sema;          /* Semaphore to make sure child has finished loading */
+  semaphore parent_check_load_sema;   /* Semaphore to make sure parent has viewed child's loading status. */
+  ...
+}
+
+/* find a thread with given tid and return its thread pointer. */
+struct thread *get_thread_by_tid(tid_t tid);
+
+/* init function for wait_status struct. */
+void wait_status_init (struct wait_status *, tid_t tid);</code></pre>
+<p><strong>thread.c</strong></p>
+<pre class="c"><code>/* Addition */
+
+/* find a thread with given tid and return its thread pointer. */
+struct thread *get_thread_by_tid(tid_t tid){...}
+
+/* init function for wait_status struct. */
+void wait_status_init (struct wait_status *ws, tid_t tid){
+  lock_init (&amp;ws-&gt;lock);
+  ws-&gt;ref_cnt = 2;
+  ws-&gt;tid = tid;
+  ws-exit_code = NULL;
+  sema_init (&amp;ws-&gt;dead, 0);
+}
+
+/* Modification */
+
+static void init_thread (struct thread *t, const char *name, int priority) {
+  ...
+  wait_status_init(&amp;t-&gt;wait_status, t-&gt;tid);
+  list_init(&amp;t-&gt;children);
+  sema_init(&amp;t-&gt;child_load_sema, 0)
+  sema_init(&amp;parent_check_load_sema, 0)
+  ...
+}</code></pre>
+<p><strong>userprog/syscall.c</strong></p>
+<pre class="c"><code>/* Modification */
+
+/* Handle system call functions and use validate_addr to check if the address is valid. */
+static void syscall_handler (struct intr_frame *f UNUSED); 
+
+/* Addition */
+
+/* If the address is valid, return it. Otherwise exit(1). */
+void *validate_addr (void *ptr); </code></pre>
+<p><strong>process.c</strong></p>
+<pre class="c"><code>/* Modification */
+tid_t process_execute (const char *file_name) {...}
+static void start_process (void *file_name_) {...}
+int process_wait (tid_t child_tid) {...}
+process_exit (void) {...}</code></pre>
+<p><strong>exception.c</strong></p>
+<pre class="c"><code>kill(struct intr_frame *f);       /* sema_up() sema in wait_status before thread_exit(). */</code></pre>
 <p><br /></p>
 </div>
 <div id="algorithms-1" class="section level3">
 <h3>2. Algorithms</h3>
+<p><strong>Preparation</strong></p>
+<p><strong>halt</strong></p>
+<ul>
+<li>In <code>syscall_handler</code>, call <code>shutdown_power_off()</code> to terminate Pintos if <code>args[0] == SYS_HALT</code>.</li>
+</ul>
+<p><strong>practice</strong></p>
+<ul>
+<li>In <code>syscall_handler</code>, set <code>f-&gt;eax</code> as <code>args[1] + 1</code> if <code>args[0] == SYS_PRACTICE</code>.</li>
+</ul>
+<p><strong>exec</strong></p>
+<p>In <code>process_execute</code></p>
+<ul>
+<li><code>sema_down</code> <code>child_load_sema</code> in child thread.</li>
+<li>After <code>sema_down</code>, check <code>load_success</code> which represent whether a child has been loaded successfully or not.</li>
+<li>If it is <code>True</code>, return <code>tid</code>. Else, return <code>-1</code>.</li>
+<li>Before returning, <code>sema_up</code> <code>parent_check_load_sema</code> in child thread to wake it up.</li>
+<li>Push child’s <code>wait_status</code> to <code>children</code> list in the current thread if the child has been successfully loaded.</li>
+<li>Child thread can be acquired by function <code>get_thread_by_tid</code> implemented in <code>thread.c</code>.</li>
+</ul>
+<p>In <code>start_process</code></p>
+<ul>
+<li>Set <code>load_success</code> as success after <code>load</code> has finished.</li>
+<li>Then <code>sema_up</code> <code>child_load_sema</code> in the current thread to wake its parent up.</li>
+<li>Immediately, <code>sema_down</code> <code>parent_check_load_sema</code> to make sure the parent has checked child’s load status before move on.</li>
+</ul>
+<p><strong>wait</strong></p>
+<p>In <code>process_wait</code></p>
+<ul>
+<li>Iterate through <code>children</code> list in current thread and look for the thread which has the same tid as the one provided.</li>
+<li>If no thread can match the given tid, return -1</li>
+<li>If the thread exists, <code>sema_down</code> <code>dead</code> in child’s <code>wait_status</code>.</li>
+<li>After <code>sema_down</code>, init a new local variable <code>exit_code</code> equal to <code>exit_code</code> in child’s <code>wait_status</code>.</li>
+<li>Acquire <code>lock</code> in child’s <code>wait_status</code> and decrease <code>ref_cnt</code> in child’s <code>wait_status</code> by 1 following by a <code>release_lock</code>.</li>
+<li>If child’s <code>ref_cnt</code> in <code>wait_status</code> equal to 0, free child’s <code>wait_status</code> and remove <code>elem</code> which represents child’s <code>wait_status</code> from list.</li>
+<li>Return local variable <code>exit_code</code>.</li>
+</ul>
+<p><strong>exit vs wait</strong></p>
+<p>In <code>process_exit</code></p>
+<ul>
+<li>Acquire <code>lock</code> in <code>wait_status</code> of current thread and decrease <code>ref_cnt</code> in <code>wait_status</code> of current thread by 1. Don’t release lock here.</li>
+<li>If <code>ref_cnt</code> in <code>wait_status</code> of current thread equal to 0, release lock, free its <code>wait_status</code> and remove <code>elem</code> which represents its <code>wait_status</code> from list. Else, just release lock.</li>
+<li>Iterate through <code>children</code> list in current thread.</li>
+<li>For each child thread, acquire <code>lock</code> in its <code>wait_status</code> and decrease <code>ref_cnt</code> in its <code>wait_status</code> by 1. Don’t release lock here.</li>
+<li>If child’s <code>ref_cnt</code> in <code>wait_status</code> equal to 0, release lock, free child’s <code>wait_status</code> and remove <code>elem</code> which represents child’s <code>wait_status</code> from list. Else, just release lock.</li>
+<li><code>sema_up</code> <code>dead</code> in current thread if the current <code>wait_status</code> still exists.</li>
+</ul>
 <p><br /></p>
 </div>
 <div id="synchronization-1" class="section level3">
 <h3>3. Synchronization</h3>
+<p><strong>exec</strong></p>
+<ul>
+<li>Two semaphores <code>child_load_sema</code> and <code>parent_check_load_sema</code> are designed to synchronize <code>process_execute</code> (which runs in the parent thread) and <code>start_process</code> (which runs in the child thread).</li>
+<li><ul>
+<li><code>child_load_sema</code> is to make sure that the logic check of child’s load status in parent’s <code>process_execute</code> happens after loading child thread in <code>start_process</code>.</li>
+</ul></li>
+<li><ul>
+<li><code>parent_check_load_sema</code> is to make sure that parent process can still get child’s <code>load_success</code> even if child process has a higher priority than parent thread.</li>
+</ul></li>
+<li>Aqcuire lock and release lock before and after editing <code>ref_cnt</code> to make sure <code>ref_cnt</code> can only be edited by one thread at a time.</li>
+</ul>
 <p><br /></p>
 </div>
 <div id="rationale-1" class="section level3">
 <h3>4. Rationale</h3>
+<p>For wait:</p>
+<ul>
+<li><p>If parent exit first: parent would decrease all its children’s <code>ref_cnt</code> by 1 to represent that it has exited already. If a child thread’s <code>ref_cnt</code> is 0, it means that both of its parent and itself has exited. Thus, we free its <code>wait_status</code>.</p></li>
+<li><p>If child exit first: child would decrease its <code>ref_cnt</code> by 1 to represent that it has exited already. It also store its exit code in its <code>wait_status.exit_code</code>. Thus, its parent can access its exit code later when calling wait on it.</p></li>
+<li><p>If a parent wait for a child while a child is still running: it has to <code>sema_down</code> child’s <code>dead</code> sema first when child’s <code>dead</code> sema is only <code>sema_up</code>ed when it exits. Thus it makes sure that the parent thread will wait until the child thread finishes.</p></li>
+</ul>
 <p><br /> <br /> <br /> <br /></p>
 </div>
 </div>
