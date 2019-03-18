@@ -121,9 +121,6 @@ thread.h
 /* Add struct fields. */
 struct thread {
     ...
-  	struct list fd_list  // Stores fd to file* mapping
-  	int fd_numbers;      //  Used for assigning fd
-  	file* executingFile; // Used for re-enabling writes when process finishes executing
   	...
 }
 ```
