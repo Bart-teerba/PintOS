@@ -174,7 +174,6 @@ process_exit (void) {...}
 kill(struct intr_frame *f);       /* sema_up() sema in wait_status before thread_exit(). */
 ```
 
-
 <br />
 
 ### 2. Algorithms
@@ -274,8 +273,13 @@ process.c
 bool load (const char *file_name, void (**eip) (void), void **esp)
 {
     ...
-    /* add file_deny_write() call at the beginning and file_allow_write() call in done. */
+    /* add file_deny_write() call . */
     ...
+}
+void
+process_exit (void)
+{
+    ... /* get thread's cur_file and call add file_allow_write(). */
 }
 ```
 
@@ -283,17 +287,29 @@ syscall.c
 
 ```c
 /* Add global variable. */
-struct lock filesys_lock;
+struct lock *filesys_lock;
+int fd_spots[4096];
+
+/* Add helper functions */
+/* Find a usable fd number from fd_spots, create a fd_file_map, add it to current thread's fd_list */
+int add_file(struct file* file)
+/* remove the mapping struct according to fd in current thread's fd_list. Update the fd_spots array */
+void remove_file(int fd); 
+/* get the mapping struct according to fd from current thread's fd_list */
+struct file* get_file(int fd); 
+
+
+
 
 /* Modify. */
-/* Add the corresponding file operation call according to the input System call number (SYS_OPEN, SYS_READ...). */
+/* Add the corresponding file operation call according to the input system call number (SYS_OPEN, SYS_READ...). */
 syscall_handler (struct intr_frame *f UNUSED) 
 {
 	...    
 }
 
 /* Implement. See algorithms for details. */
-bool create (const char *file, unsigned initial size) {...};
+bool create (const char *file, unsigned initial_size) {...};
 bool remove (const char *file) {...};
 int open (const char *file) {...};
 int filesize (int fd) {...};
@@ -301,7 +317,14 @@ int read (int fd, void *buffer, unsigned size) {...};
 int write (int fd, const void *buffer, unsigned size) {...};
 void seek (int fd, unsigned position) {...};
 unsigned tell (int fd) {...};
-void close (int fd);
+void close (int fd) {...};
+```
+
+thread.c
+
+```c
+/* Add */
+void set_thread_cur_file (file*);
 ```
 
 thread.h
@@ -310,11 +333,24 @@ thread.h
 /* Add struct fields. */
 struct thread {
     ...
+    struct file* cur_file;
+    struct list* fd_list;
   	...
 }
+
+/* Set thread's cur_file to file* */
+void set_thread_cur_file (file*);
 ```
 
+process.h
 
+```c
+/* Add struct. */
+struct fd_file_map { 
+    int fd;  
+    struct file * file;    
+}
+```
 
 
 
@@ -322,6 +358,47 @@ struct thread {
 
 ### 2. Algorithms
 
+- Before any file operation call through the `syscall_handler`, we will have to call `validate_addr()` (implemented in task2) to validate the input argument address. If not, we simply exit. 
+- After validating the arguments, we will have to obtain the global lock `filesys_lock` so that no multiple ﬁlesystem functions are called concurrently. After that, we should retrieve the arguments from `argv`, call the corresponding file operation functions provided by `filesys` according to the input system call number. 
+- Note: Right before each function returns to user, we release the global lock `filesys_lock`. To avoid  being verbose, we don't repeat this in each file operation function.
+- The details of each functions are as follows:
+
+- `bool create (const char *file, unsigned initial_size)`: 
+
+  - Call `filesys_create (const char *name, off_t initial_size)`. store the return value in `success` to return to user.
+
+- `bool remove (const char *file) `:
+
+  - Call `filesys_remove (const char *name)`. store the return value in `success` to return to user.
+
+- `int open (const char *file)`
+
+  - Call `filesys_open (const char *name)`. 
+  - Check the returned `file*` pointer, if it's `NULL`, return `-1` to users, meaning failure. 
+  - Otherwise, we should call `add_file(struct file* file)`, which uses the global `next_fd_to_use` and the returned `file *` to initialize a `struct fd_file_map` and add it to current thread's `fd_list`, which stores the mapping between file descriptors and `file *` per thread. Increment the `next_fd_to_use`  by 1. Return the old `next_fd_to_use` to user.
+
+- `int filesize (int fd)`
+
+  - Use `struct file* get_file(int fd)` to Iterate through the current thread's `fd_list`, if no such `fd` is found, -1 is returned to user.
+  - If found, we retrieve the corresponding `struct file *` to call `file_length (struct file *)`. Return the returned value to user.
+
+- `int read (int fd, void *buffer, unsigned size) `
+
+  - use `validate_addr()` to validate the address at  `*buff` and `(*(buff) + size)`. If not valid, return -1 to user.
+  - If `fd == 0`, we use `uint8_t input_getc (void)` inside `src/devices/input.c` to repeatedly get characters and put into our buffer until we reach number of `size` . Return number of bytes we read to user. 
+  - If `fd != 0`, retrieve the corresponding `struct file*` by calling `struct file* get_file(int fd)` on `fd`. If not valid, return -1 to user. If found, using retrieved `struct file*`, call `file_read (struct file *file, void *buffer, off_t size)`, return the returned value to user. If not valid, return -1 to user.
+
+- `int write (int fd, const void *buffer, unsigned size) `
+
+  - use `validate_addr()` to validate the address at  `*buff` and `(*(buff) + size)`.
+
+- `void seek (int fd, unsigned position) `
+
+- `unsigned tell (int fd) `
+
+- `void close (int fd)`
+
+  - Use `struct file* get_file(int fd)` to find the corresponding `struct file*`,
 
 
 <br />
@@ -329,14 +406,19 @@ struct thread {
 ### 3. Synchronization
 
 - We use a global lock `filesys_lock` to ensure thread-safe file operation syscalls. In order to make a file operation syscall, a thread has to acquire the global lock first, and will only able to go forward if the global lock has been released by any other threads doing file operations. 
-- To prevent any modification on the executable on disk when a user processing is running, we call `file_deny_write` during the creation phase of a user process, and call `file_allow_write` when the user process terminates.
+- To prevent any modification on the executable on disk when a user processing is running, we call `file_deny_write` immediately after the `file` is obtained, and call `file_allow_write` at the end of process termination.
 
 
 <br />
 
 ### 4. Rationale
 
+- Since hash map is discouraged (according to piazza), we use a `struct` to maintain a mapping between `fd` and `struct file*`, which is added to the `fd_list` when one mapping struct is created.
+- We have to check all the addresses provided by user are valid using `valiadate_addr`. This includes the addresses in `argv`, buffer address and buffer address + size in `read`, `write`.
 
+- To correctly allocate the file descriptor, we use a global int array of length 4096. We use `1` to indicate the corresponding index is already used as an `fd`, and `0` meaning not being used. We initialize the array to be all zero, except for `arr[0]` and `arr[1]`,which is `1` because they are reserved for `STDIN_FILENO` and `STDOUT_FILENO`. Then to find a usable `fd` to allocate, we simply iterate through the array until we find an empty spot, i.e. `0`, and set it to `1`. When we finish using the `fd` number, we then set `arr[fd]` back to `0`. 4096 should be far more enough than the file descriptors we will possibly need. We feel this method is both efficient and easy to code. 
+
+- We define helper function `add_file`, `get_file`, `remove_file` to reduce the unnecessary repeated code segments. 
 
 
 <br />
