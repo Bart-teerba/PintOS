@@ -293,8 +293,10 @@ int fd_spots[4096];
 /* Add helper functions */
 /* Find a usable fd number from fd_spots, create a fd_file_map, add it to current thread's fd_list */
 int add_file(struct file* file)
+    
 /* remove the mapping struct according to fd in current thread's fd_list. Update the fd_spots array */
 void remove_file(int fd); 
+
 /* get the mapping struct according to fd from current thread's fd_list */
 struct file* get_file(int fd); 
 
@@ -358,24 +360,24 @@ struct fd_file_map {
 
 ### 2. Algorithms
 
-- Before any file operation call through the `syscall_handler`, we will have to call `validate_addr()` (implemented in task2) to validate the input argument address. If not, we simply exit. 
-- After validating the arguments, we will have to obtain the global lock `filesys_lock` so that no multiple ﬁlesystem functions are called concurrently. After that, we should retrieve the arguments from `argv`, call the corresponding file operation functions provided by `filesys` according to the input system call number. 
-- Note: Right before each function returns to user, we release the global lock `filesys_lock`. To avoid  being verbose, we don't repeat this in each file operation function.
+- Before any file operation call through the `syscall_handler`, we will have to call `validate_addr()` (implemented in task2) to validate the input argument address. If not valid, we simply return -1 to user.
+- After validating the arguments, we will have to obtain the global lock `filesys_lock` so that no multiple ﬁlesystem functions are called concurrently. After that, we should retrieve the arguments from `argv`, call the corresponding file operation functions according to the input system call number. 
+- Note: Right before we return to user, we should release the global lock `filesys_lock`. To avoid  being verbose, we don't repeat this inside each function.
 - The details of each functions are as follows:
 
 - `bool create (const char *file, unsigned initial_size)`: 
 
-  - Call `filesys_create (const char *name, off_t initial_size)`. store the return value in `success` to return to user.
+  - Call `filesys_create (const char *name, off_t initial_size)`. Return the return value in `success` to user.
 
 - `bool remove (const char *file) `:
 
-  - Call `filesys_remove (const char *name)`. store the return value in `success` to return to user.
+  - Call `filesys_remove (const char *name)`. Return the return value in `success` to user.
 
 - `int open (const char *file)`
 
   - Call `filesys_open (const char *name)`. 
   - Check the returned `file*` pointer, if it's `NULL`, return `-1` to users, meaning failure. 
-  - Otherwise, we should call `add_file(struct file* file)`, which uses the global `next_fd_to_use` and the returned `file *` to initialize a `struct fd_file_map` and add it to current thread's `fd_list`, which stores the mapping between file descriptors and `file *` per thread. Increment the `next_fd_to_use`  by 1. Return the old `next_fd_to_use` to user.
+  - Otherwise, we should call `add_file(struct file* file)`, which find the next usable file descriptor in `fd_spots` and the returned `file *` to initialize a `struct fd_file_map`, and add it to current thread's `fd_list`, which stores the mapping between file descriptors and `file *` per thread. Return the used `fd` to user.
 
 - `int filesize (int fd)`
 
@@ -386,11 +388,11 @@ struct fd_file_map {
 
   - use `validate_addr()` to validate the address at  `*buff` and `(*(buff) + size)`. If not valid, return -1 to user.
   - If `fd == 0`, we use `uint8_t input_getc (void)` inside `src/devices/input.c` to repeatedly get characters and put into our buffer until we reach number of `size` . Return number of bytes we read to user. 
-  - If `fd != 0`, retrieve the corresponding `struct file*` by calling `struct file* get_file(int fd)` on `fd`. If not valid, return -1 to user. If found, using retrieved `struct file*`, call `file_read (struct file *file, void *buffer, off_t size)`, return the returned value to user. If not valid, return -1 to user.
+  - If `fd != 0`, retrieve the corresponding `struct file*` by calling `struct file* get_file(int fd)` on `fd`. If not found, return -1 to user. If found, using retrieved `struct file*`, call `file_read (struct file *file, void *buffer, off_t size)`, return the returned value to user. 
 
 - `int write (int fd, const void *buffer, unsigned size) `
 
-  - use `validate_addr()` to validate the address at  `*buff` and `(*(buff) + size)`.
+  - Use `validate_addr()` to validate the address at  `*buff` and `(*(buff) + size)`.
 
 - `void seek (int fd, unsigned position) `
 
