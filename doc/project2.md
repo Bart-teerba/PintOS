@@ -364,51 +364,48 @@ struct fd_file_map {
 - After validating the arguments, we will have to obtain the global lock `filesys_lock` so that no multiple ﬁlesystem functions are called concurrently. After that, we should retrieve the arguments from `argv`, call the corresponding file operation functions according to the input system call number. 
 - Note: Right before we return to user, we should release the global lock `filesys_lock`. To avoid  being verbose, we don't repeat this inside each function.
 - The details of each functions are as follows:
-
 - `bool create (const char *file, unsigned initial_size)`: 
 
   - Call `filesys_create (const char *name, off_t initial_size)`. Return the return value in `success` to user.
-
 - `bool remove (const char *file) `:
 
   - Call `filesys_remove (const char *name)`. Return the return value in `success` to user.
-
 - `int open (const char *file)`
 
   - Call `filesys_open (const char *name)`. 
   - Check the returned `file*` pointer, if it's `NULL`, return `-1` to users, meaning failure. 
   - Otherwise, we should call `add_file(struct file* file)`, which find the next usable file descriptor in `fd_spots` and the returned `file *` to initialize a `struct fd_file_map`, and add it to current thread's `fd_list`, which stores the mapping between file descriptors and `file *` per thread. Return the used `fd` to user.
-
 - `int filesize (int fd)`
 
   - Use `struct file* get_file(int fd)` to Iterate through the current thread's `fd_list`, if no such `fd` is found, -1 is returned to user.
   - If found, we retrieve the corresponding `struct file *` to call `file_length (struct file *)`. Return the returned value to user.
-
 - `int read (int fd, void *buffer, unsigned size) `
 
-  - use `validate_addr()` to validate the address at  `*buff` and `(*(buff) + size)`. If not valid, return -1 to user.
+  - use `validate_addr()` to validate the address at  `*buff` and `*(buff + size)`. If not valid, return -1 to user.
   - If `fd == 0`, we use `uint8_t input_getc (void)` inside `src/devices/input.c` to repeatedly get characters and put into our buffer until we reach number of `size` . Return number of bytes we read to user. 
   - If `fd != 0`, retrieve the corresponding `struct file*` by calling `struct file* get_file(int fd)` on `fd`. If not found, return -1 to user. If found, using retrieved `struct file*`, call `file_read (struct file *file, void *buffer, off_t size)`, return the returned value to user. 
-
 - `int write (int fd, const void *buffer, unsigned size) `
-
-  - Use `validate_addr()` to validate the address at  `*buff` and `(*(buff) + size)`.
-
+  - Use `validate_addr()` to validate the address at  `*buff` and `*(buff + size)`. If not valid, return -1 to user.
+  - if `fd == 1`, we use `void putbuf (const char *buffer, size_t n)` inside `src/lib/kernel/console.c` to write buff to console in one shot, unless the size is too big and we break up it into several calls. Return number of bytes we actually write to user.
+  - if `fd != 1`, retrieve the corresponding `struct file*` by calling `struct file* get_file(int fd)` on `fd`. If not found, return -1 to user. If found, using retrieved `struct file*`, call `off_t
+     file_write (struct file *file, const void *buffer, off_t size)`. Return the returned value to user. 
 - `void seek (int fd, unsigned position) `
-
-- `unsigned tell (int fd) `
-
+  - Retrieve the corresponding `struct file*` by calling `struct file* get_file(int fd)` on `fd`. If not found, stop here. If found, using retrieved `struct file*`, call `void
+    file_seek (struct file *file, off_t new_pos)`. Nothing is returned to user. 
+- `unsigned tell (int fd) `r
+  - Retrieve the corresponding `struct file*` by calling `struct file* get_file(int fd)` on `fd`. If not found, return 0. If found, using retrieved `struct file*`, call `off_t
+    file_tell (struct file *file)`. Return the returned value to user. 
 - `void close (int fd)`
 
-  - Use `struct file* get_file(int fd)` to find the corresponding `struct file*`,
-
+  - Retrieve the corresponding `struct file*` by calling `struct file* get_file(int fd)` on `fd`. If not found, stop here. If found, using retrieved `struct file*`, call `void
+    file_close (struct file *file)`. Then, deallocate the `fd` by `calling remove_file(int fd)`. 
 
 <br />
 
 ### 3. Synchronization
 
 - We use a global lock `filesys_lock` to ensure thread-safe file operation syscalls. In order to make a file operation syscall, a thread has to acquire the global lock first, and will only able to go forward if the global lock has been released by any other threads doing file operations. 
-- To prevent any modification on the executable on disk when a user processing is running, we call `file_deny_write` immediately after the `file` is obtained, and call `file_allow_write` at the end of process termination.
+- To prevent any modification on the executable on disk when a user processing is running, we call `file_deny_write` immediately when the process starts running, i.e. after load success, and call `file_allow_write` at the end of process termination. The arguments for these two calls can be retrieved through current running thread's `struct file* cur_file` field.
 
 
 <br />
@@ -434,9 +431,7 @@ struct fd_file_map {
 
 1. Take a look at the Project 2 test suite in pintos/src/tests/userprog. Some of the test cases will intentionally provide invalid pointers as syscall arguments, in order to test whether your implementation safely handles the reading and writing of user process memory. Please identify a test case that uses an invalid stack pointer ($esp) when making a syscall. Provide the name of the test and explain how the test works. (Your explanation should be very speciﬁc: use line numbers and the actual names of variables when explaining the test case.)
 
-<br />
-
-*Answer*
+**Answer**
 
 Test case: `sc-bad-sp.c`
 
@@ -444,18 +439,26 @@ Problem: In line 18, a negative virtual address which lies approximately 64MB be
 
 <br>
 
+
+
 2. Please identify a test case that uses a valid stack pointer when making a syscall, but the stack pointer is too close to a page boundary, so some of the syscall arguments are located in invalid memory. (Your implementation should kill the user process in this case.) Provide the name of the test and explain how the test works. (Your explanation should be very speciﬁc: use line numbers and the actual names of variables when explaining the test case.)
 
-<br />
-
-*Answer*
+**Answer**
 
 Test case: `sc-bad-arg.c`
 
 Problem: In line 14, the top boundary of stack which is `0xbffffffc` is assigned to esp. When the system call number of `SYS_EXIT` is stored at this address, the argument to the `SYS_EXIT` would be above the top of the user address space. When `SYS_EXIT` is invoked, the test process should be terminated with -1 exit code.
 
 
+
+
+
+
 3. Identify one part of the project requirements which is not fully tested by the existing test suite. Explain what kind of test needs to be added to the test suite, in order to provide coverage for that part of the project. (There are multiple good answers for this question.)
+
+**Answer**
+
+There are no tests written for some of the file operations. For example, `remove`, `seek`, `tell`, etc. We should add tests to test their functionality works as expected.  For example, for `remove`, we should create a file, remove the file we created, and try to open the file. Failure is expected. 
 
 
 
