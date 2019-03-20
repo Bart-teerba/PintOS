@@ -239,7 +239,7 @@ In `process_exit`
 - - `child_load_sema` is to make sure that the logic check of child's load status in parent's `process_execute` happens after loading child thread in `start_process`.
 - - `parent_check_load_sema` is to make sure that parent process can still get child's `load_success` even if child process has a higher priority than parent thread.
 
-- Aqcuire lock and release lock before and after editing `ref_cnt` to make sure `ref_cnt` can only be edited by one thread at a time.
+- Aqcuire lock and release lock before and after editing and accessing `ref_cnt` to make sure `ref_cnt` can only be edited by one thread at a time.
 
 
 <br />
@@ -431,18 +431,15 @@ struct fd_file_map {
 
 1. Take a look at the Project 2 test suite in pintos/src/tests/userprog. Some of the test cases will intentionally provide invalid pointers as syscall arguments, in order to test whether your implementation safely handles the reading and writing of user process memory. Please identify a test case that uses an invalid stack pointer ($esp) when making a syscall. Provide the name of the test and explain how the test works. (Your explanation should be very speciﬁc: use line numbers and the actual names of variables when explaining the test case.)
 
-<<<<<<< HEAD
 **Answer**
 
 Test case: `sc-bad-sp.c`
 
 Problem: In line 18, a negative virtual address which lies approximately 64MB below the code segment is assigned to esp. Because this address is not mapped to any valid memory, the test process must be terminated with -1 exit code.
-=======
->>>>>>> parent of c430d2d... Additional 1 & 2 | Jerry | edition 1
+
+<br>
 
 
-
-<<<<<<< HEAD
 
 2. Please identify a test case that uses a valid stack pointer when making a syscall, but the stack pointer is too close to a page boundary, so some of the syscall arguments are located in invalid memory. (Your implementation should kill the user process in this case.) Provide the name of the test and explain how the test works. (Your explanation should be very speciﬁc: use line numbers and the actual names of variables when explaining the test case.)
 
@@ -451,8 +448,6 @@ Problem: In line 18, a negative virtual address which lies approximately 64MB be
 Test case: `sc-bad-arg.c`
 
 Problem: In line 14, the top boundary of stack which is `0xbffffffc` is assigned to esp. When the system call number of `SYS_EXIT` is stored at this address, the argument to the `SYS_EXIT` would be above the top of the user address space. When `SYS_EXIT` is invoked, the test process should be terminated with -1 exit code.
-=======
->>>>>>> parent of c430d2d... Additional 1 & 2 | Jerry | edition 1
 
 
 
@@ -485,9 +480,66 @@ Finally, start GDB (`pintos-gdb build/kernel.o`) and attach it to the Pintos pro
 The questions you should answer in your design doc are the following.
 
 1. Set a break point at `process_execute` and continue to that point. What is the name and address of the thread running this function? What other threads are present in pintos at this time? Copy their `struct threads`. (Hint: for the last part `dumplist &all_list thread allelem` may be useful.)
+
+**Answer**
+- name: "main"
+- address: `0xc000e000`
+
+`pintos-debug: dumplist #0: 0xc000e000 {tid = 1, status = THREAD_RUNNING, name = "main", '\000' <repeats 11 times>, stack = 0xc000ee0c "\210\357", priority = 31, allelem = {prev = 0xc0034b50 <all_list>, next = 0xc0104020}, elem = {prev = 0xc0034b60 <ready_list>, next = 0xc0034b68 <ready_list+8>}, pagedir = 0x0, magic = 3446325067}`
+
+`pintos-debug: dumplist #1: 0xc0104000 {tid = 2, status = THREAD_BLOCKED, name = "idle", '\000' <repeats 11 times>, stack = 0xc0104f34 "", priority = 0, allelem = {prev = 0xc000e020, next = 0xc0034b58<all_list+8>}, elem = {prev = 0xc0034b60 <ready_list>, next = 0xc0034b68 <ready_list+8>}, pagedir =0x0, magic = 3446325067}`
+
+<br>
+
 2. What is the backtrace for the current thread? Copy the backtrace from gdb as your answer and also copy down the line of c code corresponding to each function call.
+
+**Answer**
+
+`#0  process_execute (file_name=file_name@entry=0xc0007d50 "args-none") at ../../userprog/process.c:32`
+
+`#1  0xc002025e in run_task (argv=0xc0034a0c <argv+12>) at ../../threads/init.c:288`
+
+`#2  0xc00208e4 in run_actions (argv=0xc0034a0c <argv+12>) at ../../threads/init.c:340`
+
+`#3  main () at ../../threads/init.c:133`
+
+<br>
+
 3. Set a breakpoint at `start_process` and continue to that point. What is the name and address of the thread running this function? What other threads are present in pintos at this time? Copy their `struct threads`.
+
+**Answer**
+- name: "args-none"
+- address: `0xc010a000`
+
+`pintos-debug: dumplist #0: 0xc000e000 {tid = 1, status = THREAD_BLOCKED, name = "main", '\000' <repeats 11 times>, stack = 0xc000eebc "\001", priority = 31, allelem = {prev = 0xc0034b50 <all_list>, next = 0xc0104020}, elem = {prev = 0xc0036554 <temporary+4>, next = 0xc003655c <temporary+12>}, pagedir = 0x0, magic = 3446325067}`
+
+`pintos-debug: dumplist #1: 0xc0104000 {tid = 2, status = THREAD_BLOCKED, name = "idle", '\000' <repeats 11 times>, stack = 0xc0104f34 "", priority = 0, allelem = {prev = 0xc000e020, next = 0xc010a020}, elem = {prev = 0xc0034b60 <ready_list>, next = 0xc0034b68 <ready_list+8>}, pagedir = 0x0, magic = 3446325067}`
+
+`pintos-debug: dumplist #2: 0xc010a000 {tid = 3, status = THREAD_RUNNING, name = "args-none\000\000\000\000\000\000", stack = 0xc010afd4 "", priority = 31, allelem = {prev = 0xc0104020, next = 0xc0034b58 <all_list+8>}, elem = {prev = 0xc0034b60 <ready_list>, next = 0xc0034b68 <ready_list+8>}, pagedir = 0x0, magic = 3446325067}`
+
+
+<br>
+
 4. Where is the thread running `start_process` created? Copy down this line of code.
+
+**Answer**
+
+It is created at line 45 in `process_execute` function in `process.c`.
+```c
+tid_t process_execute(const char *file_name) {
+  ...
+  /* Create a new thread to execute FILE_NAME. */
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  ...
+}
+```
+
+gdb reference:
+`#0  start_process (file_name_=0xc0109000) at ../../userprog/process.c:55`
+`#1  0xc002128f in kernel_thread (function=0xc002a125 <start_process>, aux=0xc0109000) at ../../threads/thread.c:424`
+`#2  0x00000000 in ?? ()`
+<br>
+
 5. Continue one more time. The userprogram should cause a page fault and thus cause the page fault handler to be executed. It’ll look something like
 
 ```
@@ -499,11 +551,33 @@ pintos-debug: hit ’c’ to continue, or ’s’ to step to intr_handler 0xc002
 
 Please ﬁnd out what line of our user program caused the page fault. Don’t worry if it’s just an hex address. (Hint: `btpagefault` may be useful)
 
+
+**Answer**
+
+- address: `0x0804870c`
+
+<br>
+
+
 6. The reason why btpagefault returns an hex address is because pintos-gdb build/kernel.o only loads in the symbols from the kernel. The instruction that caused the page fault is in our userprogram so we have to load these symbols into gdb. To do this use
 
 `loadusersymbols build/tests/userprog/args-none`
 
 . Now do `btpagefault` again and copy down the results.
 
+
+**Answer**
+
+`#0  _start (argc=<error reading variable: can't compute CFA for this frame>, argv=<error reading variable: can't compute CFA for this frame>) at ../../lib/user/entry.c:9`
+
+<br>
+
+
 7. Why did our user program page fault on this line?
 
+
+**Answer**
+
+The system has problem finding `argc` and `argv`. This is because argument passing has not been implemented yet.
+
+<br>
