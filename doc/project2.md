@@ -431,15 +431,18 @@ struct fd_file_map {
 
 1. Take a look at the Project 2 test suite in pintos/src/tests/userprog. Some of the test cases will intentionally provide invalid pointers as syscall arguments, in order to test whether your implementation safely handles the reading and writing of user process memory. Please identify a test case that uses an invalid stack pointer ($esp) when making a syscall. Provide the name of the test and explain how the test works. (Your explanation should be very speciﬁc: use line numbers and the actual names of variables when explaining the test case.)
 
+<<<<<<< HEAD
 **Answer**
 
 Test case: `sc-bad-sp.c`
 
 Problem: In line 18, a negative virtual address which lies approximately 64MB below the code segment is assigned to esp. Because this address is not mapped to any valid memory, the test process must be terminated with -1 exit code.
+=======
+>>>>>>> parent of c430d2d... Additional 1 & 2 | Jerry | edition 1
 
-<br>
 
 
+<<<<<<< HEAD
 
 2. Please identify a test case that uses a valid stack pointer when making a syscall, but the stack pointer is too close to a page boundary, so some of the syscall arguments are located in invalid memory. (Your implementation should kill the user process in this case.) Provide the name of the test and explain how the test works. (Your explanation should be very speciﬁc: use line numbers and the actual names of variables when explaining the test case.)
 
@@ -448,6 +451,8 @@ Problem: In line 18, a negative virtual address which lies approximately 64MB be
 Test case: `sc-bad-arg.c`
 
 Problem: In line 14, the top boundary of stack which is `0xbffffffc` is assigned to esp. When the system call number of `SYS_EXIT` is stored at this address, the argument to the `SYS_EXIT` would be above the top of the user address space. When `SYS_EXIT` is invoked, the test process should be terminated with -1 exit code.
+=======
+>>>>>>> parent of c430d2d... Additional 1 & 2 | Jerry | edition 1
 
 
 
