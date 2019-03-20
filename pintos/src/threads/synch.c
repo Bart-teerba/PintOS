@@ -113,14 +113,10 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)) 
-  {
-    struct list_elem *thread_elem = list_max (&sema->waiters, priority_less, NULL);
-    list_remove (thread_elem);
-    thread_unblock (list_entry (thread_elem, struct thread, elem));
-  }
+  if (!list_empty (&sema->waiters))
+    thread_unblock (list_entry (list_pop_front (&sema->waiters),
+                                struct thread, elem));
   sema->value++;
-  thread_yield ();
   intr_set_level (old_level);
 }
 
@@ -196,38 +192,12 @@ lock_init (struct lock *lock)
 void
 lock_acquire (struct lock *lock)
 {
-  struct thread *current_thread = thread_current();
-  struct lock *l;
-
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
-  if (lock->holder != NULL && !thread_mlfqs) 
-  {
-    current_thread->waiting_lock = lock;
-    l = lock;
-    while (l && current_thread->priority_effective > l->max_priority) 
-    {
-      l->max_priority = current_thread->priority_effective;
-      thread_update_priority (l->holder);
-      l = l->holder->waiting_lock;
-    }
-  }
-
   sema_down (&lock->semaphore);
-
-  enum intr_level old_level = intr_disable();
-
-  current_thread = thread_current();
-  if (!thread_mlfqs) 
-  {
-    current_thread->waiting_lock = NULL;
-    lock->max_priority = current_thread->priority_effective;
-    thread_get_lock (lock);
-  }
-  lock->holder = current_thread;
-  intr_set_level (old_level);
+  lock->holder = thread_current ();
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -246,9 +216,7 @@ lock_try_acquire (struct lock *lock)
 
   success = sema_try_down (&lock->semaphore);
   if (success)
-  {
     lock->holder = thread_current ();
-  }
   return success;
 }
 
@@ -258,18 +226,13 @@ lock_try_acquire (struct lock *lock)
    make sense to try to release a lock within an interrupt
    handler. */
 void
-lock_release (struct lock *l)
+lock_release (struct lock *lock)
 {
-  ASSERT (l != NULL);
-  ASSERT (lock_held_by_current_thread (l));
+  ASSERT (lock != NULL);
+  ASSERT (lock_held_by_current_thread (lock));
 
-  if (!thread_mlfqs) 
-  {
-    thread_rm_lock (l);
-  }
-
-  l->holder = NULL;
-  sema_up (&l->semaphore);
+  lock->holder = NULL;
+  sema_up (&lock->semaphore);
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -353,12 +316,9 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
 
-  if (!list_empty (&cond->waiters)) 
-  {
-    struct list_elem *sema_elem = list_max (&cond->waiters, cond_sema_priority_less, NULL);
-    list_remove(sema_elem);
-    sema_up (&list_entry (sema_elem, struct semaphore_elem, elem)->semaphore);
-  }
+  if (!list_empty (&cond->waiters))
+    sema_up (&list_entry (list_pop_front (&cond->waiters),
+                          struct semaphore_elem, elem)->semaphore);
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
@@ -374,29 +334,5 @@ cond_broadcast (struct condition *cond, struct lock *lock)
   ASSERT (lock != NULL);
 
   while (!list_empty (&cond->waiters))
-  {
     cond_signal (cond, lock);
-  }
-}
-
-
-/* lock comparation function */
-bool
-lock_priority_less (const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED)
-{
-  return list_entry (e1, struct lock, elem)->max_priority <  \
-         list_entry (e2, struct lock, elem)->max_priority;
-}
-
-/* cond sema comparation function */
-bool
-cond_sema_priority_less (const struct list_elem *e1, const struct list_elem *e2, void *aux UNUSED)
-{
-  struct semaphore_elem *sa = list_entry (e1, struct semaphore_elem, elem);
-  struct semaphore_elem *sb = list_entry (e2, struct semaphore_elem, elem);
-  int left_priority = list_entry (list_max (&sa->semaphore.waiters, priority_less, NULL), 
-                                  struct thread, elem)->priority_effective;
-  int right_priority = list_entry (list_max (&sb->semaphore.waiters, priority_less, NULL), 
-                                   struct thread, elem)->priority_effective;
-  return left_priority < right_priority; 
 }
