@@ -270,15 +270,19 @@ process.c
 
 ```c
 /* Modify. */
-bool load (const char *file_name, void (**eip) (void), void **esp)
+static void start_process (void *file_name_) 
 {
     ...
     /* add file_deny_write() call . */
     ...
 }
-void
-process_exit (void)
+bool load (const char *file_name, void (**eip) (void), void **esp)
+{ 
+	... /* Set running thread's cur_file*/
+}
+void process_exit (void)
 {
+    ...	/* clean up all the file desccriptors that belong to current process). */
     ... /* get thread's cur_file and call add file_allow_write(). */
 }
 ```
@@ -288,10 +292,9 @@ syscall.c
 ```c
 /* Add global variable. */
 struct lock *filesys_lock;
-int fd_spots[4096];
 
 /* Add helper functions */
-/* Find a usable fd number from fd_spots, create a fd_file_map, add it to current thread's fd_list */
+/* Find a usable fd number from current thread's fd_spots, create a fd_file_map, add it to current thread's fd_list */
 int add_file(struct file* file)
     
 /* remove the mapping struct according to fd in current thread's fd_list. Update the fd_spots array */
@@ -305,7 +308,7 @@ struct file* get_file(int fd);
 
 /* Modify. */
 /* Add the corresponding file operation call according to the input system call number (SYS_OPEN, SYS_READ...). */
-syscall_handler (struct intr_frame *f UNUSED) 
+void syscall_handler (struct intr_frame *f UNUSED) 
 {
 	...    
 }
@@ -322,13 +325,6 @@ unsigned tell (int fd) {...};
 void close (int fd) {...};
 ```
 
-thread.c
-
-```c
-/* Add */
-void set_thread_cur_file (file*);
-```
-
 thread.h
 
 ```c
@@ -337,11 +333,9 @@ struct thread {
     ...
     struct file* cur_file;
     struct list* fd_list;
+    int fd_spots[1024];
   	...
 }
-
-/* Set thread's cur_file to file* */
-void set_thread_cur_file (file*);
 ```
 
 process.h
@@ -360,28 +354,29 @@ struct fd_file_map {
 
 ### 2. Algorithms
 
-- Before any file operation call through the `syscall_handler`, we will have to call `validate_addr()` (implemented in task2) to validate the input argument address. If not valid, we simply return -1 to user.
-- After validating the arguments, we will have to obtain the global lock `filesys_lock` so that no multiple ﬁlesystem functions are called concurrently. After that, we should retrieve the arguments from `argv`, call the corresponding file operation functions according to the input system call number. 
-- Note: Right before we return to user, we should release the global lock `filesys_lock`. To avoid  being verbose, we don't repeat this inside each function.
-- The details of each functions are as follows:
+- File descriptor management: To correctly allocate and deallocate the file descriptor, for each process, we use an int array of length 1024 to record available file descriptor numbers to allocate. We use int field `1` to indicate the corresponding index is already used as an `fd`, and `0` meaning not being used. We initialize the array to be all zero, except for `arr[0]` and `arr[1]` having  `1` because they are reserved for `STDIN_FILENO` and `STDOUT_FILENO`. Then to find a usable `fd` to allocate, we simply iterate through the array until we find an empty spot, i.e. `0`, and set it to `1`. When we finish using the `fd` number, we set `arr[fd]` back to `0`. 1024 should be far more enough than the file descriptors we will possibly need. The above process is part of implementation inside `add_file` and `remove_file`. 
+
+- Before any file operation call through the `syscall_handler`, we will have to call `validate_addr()` (implemented in task2) to validate the input argument address. If not valid, we simply exit the user process.
+- After validating the arguments, we will have to obtain the global lock `filesys_lock` so that no multiple ﬁlesystem functions are called concurrently. After that, we should retrieve the arguments from `argv`, call the corresponding file operation functions according to the input system call number. If any of the call fails due to reasons such as invalid file descriptor, we should exit the user process. 
+- Right before we return to user, we should release the global lock `filesys_lock`. To avoid  being verbose, we don't repeat this inside each function.
+- The details of each function are as follows:
 - `bool create (const char *file, unsigned initial_size)`: 
 
-  - Call `filesys_create (const char *name, off_t initial_size)`. Return the return value in `success` to user.
+  - Call `filesys_create (const char *name, off_t initial_size)`. Return the return value in `success` .
 - `bool remove (const char *file) `:
-
-  - Call `filesys_remove (const char *name)`. Return the return value in `success` to user.
+  - Call `filesys_remove (const char *name)`. Return the return value in `success` .
 - `int open (const char *file)`
 
   - Call `filesys_open (const char *name)`. 
-  - Check the returned `file*` pointer, if it's `NULL`, return `-1` to users, meaning failure. 
-  - Otherwise, we should call `add_file(struct file* file)`, which find the next usable file descriptor in `fd_spots` and the returned `file *` to initialize a `struct fd_file_map`, and add it to current thread's `fd_list`, which stores the mapping between file descriptors and `file *` per thread. Return the used `fd` to user.
+  - Check the returned `file*` pointer, if it's `NULL`, return `-1` , meaning failure. 
+  - Otherwise, we should call `add_file(struct file* file)`, which find the next usable file descriptor in `fd_spots` and the returned `file *` to initialize a `struct fd_file_map`, and add it to current thread's `fd_list`, which stores the mapping between file descriptors and `file *` per thread. Return the used `fd` .
 - `int filesize (int fd)`
 
-  - Use `struct file* get_file(int fd)` to Iterate through the current thread's `fd_list`, if no such `fd` is found, -1 is returned to user.
-  - If found, we retrieve the corresponding `struct file *` to call `file_length (struct file *)`. Return the returned value to user.
+  - Use `struct file* get_file(int fd)` to Iterate through the current thread's `fd_list`, if no such `fd` is found, -1 is returned.
+  - If found, we retrieve the corresponding `struct file *` to call `file_length (struct file *)`. Return the returned value.
 - `int read (int fd, void *buffer, unsigned size) `
 
-  - use `validate_addr()` to validate the address at  `*buff` and `*(buff + size)`. If not valid, return -1 to user.
+  - use `validate_addr()` to validate the address at  `*buff` and `*(buff + size)`. If not valid, return -1.
   - If `fd == 0`, we use `uint8_t input_getc (void)` inside `src/devices/input.c` to repeatedly get characters and put into our buffer until we reach number of `size` . Return number of bytes we read to user. 
   - If `fd != 0`, retrieve the corresponding `struct file*` by calling `struct file* get_file(int fd)` on `fd`. If not found, return -1 to user. If found, using retrieved `struct file*`, call `file_read (struct file *file, void *buffer, off_t size)`, return the returned value to user. 
 - `int write (int fd, const void *buffer, unsigned size) `
@@ -415,7 +410,7 @@ struct fd_file_map {
 - Since hash map is discouraged (according to piazza), we use a `struct` to maintain a mapping between `fd` and `struct file*`, which is added to the `fd_list` when one mapping struct is created.
 - We have to check all the addresses provided by user are valid using `valiadate_addr`. This includes the addresses in `argv`, buffer address and buffer address + size in `read`, `write`.
 
-- To correctly allocate the file descriptor, we use a global int array of length 4096. We use `1` to indicate the corresponding index is already used as an `fd`, and `0` meaning not being used. We initialize the array to be all zero, except for `arr[0]` and `arr[1]`,which is `1` because they are reserved for `STDIN_FILENO` and `STDOUT_FILENO`. Then to find a usable `fd` to allocate, we simply iterate through the array until we find an empty spot, i.e. `0`, and set it to `1`. When we finish using the `fd` number, we then set `arr[fd]` back to `0`. 4096 should be far more enough than the file descriptors we will possibly need. We feel this method is both efficient and easy to code. 
+- We choose to use an int array to allocate file descriptors. We thought about using a single int, but this will not allow us to reuse the number we used before, which means the number will continue to increase over time of use, and since fd is represented as int type, this might lead to overflow. That's why we choose to implement the former. 
 
 - We define helper function `add_file`, `get_file`, `remove_file` to reduce the unnecessary repeated code segments. 
 
