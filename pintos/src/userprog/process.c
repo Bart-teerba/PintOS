@@ -211,7 +211,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *file_name, void (**eip) (void), void **esp)
+load (const char *file_name_ori, void (**eip) (void), void **esp)
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -219,6 +219,23 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
+  int argc = 0;
+  char *argv[32];
+
+  char file_name_temp[strlen(file_name_ori) + 1];
+  char *file_name = &file_name_temp[0];
+  strlcpy (file_name, file_name_ori, strlen(file_name_ori) + 1);
+  argv[0] = file_name;
+
+  char *token, *save_ptr;
+  for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
+       token = strtok_r (NULL, " ", &save_ptr)) {
+    argc++;
+    argv[argc] = save_ptr;
+  }
+
+  char *addresses[argc + 1];
+  addresses[argc] = 0;
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -312,6 +329,41 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
+
+  /* start head */
+  /* argv content */
+  for (i = argc - 1; i >= 0; i--) {
+    *esp -= (strlen(argv[i]) + 1);
+    memcpy(*esp, argv[i], strlen(argv[i]) + 1);
+    addresses[i] = *esp;
+  }
+
+  hex_dump(0, *esp, strlen(file_name_ori), true);
+
+  /* word align */
+  void *new_esp = ROUND_DOWN((long) *esp, (long) 4);
+  memset(new_esp, 0, *esp - new_esp);
+  *esp = new_esp;
+
+  /* argv */
+  *esp -= sizeof(addresses[0]) * (argc + 1);
+  memcpy(*esp, &addresses[0], sizeof(addresses[0]) * (argc + 1));
+
+  hex_dump(0, *esp, 4 * (argc + 1), false);
+
+  /* argv address */
+  memcpy(*esp - 4, esp, 4);
+  *esp -= 4;
+
+  /* argc */
+  *esp -= 4;
+  memcpy(*esp, &argc, 4);
+
+  /* return address */
+  *esp -= 4;
+  memset(*esp, 0, 4);
+
+  hex_dump(0, *esp, 4 * 3, true);
 
   success = true;
 
