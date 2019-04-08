@@ -21,5 +21,17 @@ syscall_handler (struct intr_frame *f UNUSED)
     f->eax = args[1];
     printf("%s: exit(%d)\n", &thread_current ()->name, args[1]);
     thread_exit();
+  } else if (args[0] == SYS_HALT) {
+    printf("System power off\n");
+    shutdown_power_off();
+  } else if (args[0] == SYS_PRACTICE) {
+    f->eax = args[1] + 1;
+    printf("Practice: %d + 1 = %d\n", args[1], args[1] + 1);
+  } else if (args[0] == SYS_EXEC) {
+    f->eax = args[1];
+    printf("Execute: %d\n", args[1]);
+  } else if (args[0] == SYS_WAIT) {
+    f->eax = args[1];
+    printf("Wait status: %d\n", args[1]);
   }
 }

@@ -130,6 +130,7 @@ process_activate (void)
   struct thread *t = thread_current ();
 
   /* Activate thread's page tables. */
+  printf("pagedir: %s\n", t->pagedir);
   pagedir_activate (t->pagedir);
 
   /* Set thread's kernel stack for use in processing
@@ -213,20 +214,25 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name_ori, void (**eip) (void), void **esp)
 {
+  printf("In                 \n");
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
   off_t file_ofs;
   bool success = false;
   int i;
+
+  /* task1 -- parsing */
   int argc = 0;
   char *argv[32];
 
+  /* we don't want const char * */
   char file_name_temp[strlen(file_name_ori) + 1];
   char *file_name = &file_name_temp[0];
   strlcpy (file_name, file_name_ori, strlen(file_name_ori) + 1);
   argv[0] = file_name;
 
+  /* parse argv */
   char *token, *save_ptr;
   for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
        token = strtok_r (NULL, " ", &save_ptr)) {
@@ -234,8 +240,11 @@ load (const char *file_name_ori, void (**eip) (void), void **esp)
     argv[argc] = save_ptr;
   }
 
+  /* contains a zero at the end */
   char *addresses[argc + 1];
   addresses[argc] = 0;
+  /* parsing end */
+
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
