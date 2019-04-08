@@ -87,17 +87,13 @@ timer_elapsed (int64_t then)
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
 void
-timer_sleep (int64_t t)
+timer_sleep (int64_t ticks)
 {
-  if (t < 0) 
-  {
-    return;
-  }
+  int64_t start = timer_ticks ();
+
   ASSERT (intr_get_level () == INTR_ON);
-  enum intr_level old_level = intr_disable();
-  thread_current ()->wake_tick = t + ticks;
-  thread_block ();
-  intr_set_level (old_level);
+  while (timer_elapsed (start) < ticks)
+    thread_yield ();
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -175,27 +171,6 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
-  enum intr_level old_level = intr_disable ();
-  if (thread_mlfqs) 
-  {
-    /* increase the running thread's recent cpu by one. */
-    increace_recent_cpu_by1 ();
-
-    /* Update load average and recent cpu*/
-    if (ticks % TIMER_FREQ == 0) 
-    {
-      refresh_load_avg ();
-      refresh_recent_cpu ();
-    }
-
-    /* Update priority based on ticks */
-    if (ticks % 4 == 0) 
-    {
-      thread_foreach (&refresh_priority_MLFQS, NULL);
-    }
-  }
-  thread_sleep_foreach (ticks);
-  intr_set_level (old_level);
   thread_tick ();
 }
 
