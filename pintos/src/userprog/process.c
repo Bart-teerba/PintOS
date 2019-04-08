@@ -338,7 +338,7 @@ load (const char *file_name_ori, void (**eip) (void), void **esp)
     addresses[i] = *esp;
   }
 
-  hex_dump(0, *esp, strlen(file_name_ori), true);
+  // hex_dump(0, *esp, strlen(file_name_ori), true);
 
   /* word align */
   void *new_esp = ROUND_DOWN((long) *esp, (long) 4);
@@ -349,7 +349,7 @@ load (const char *file_name_ori, void (**eip) (void), void **esp)
   *esp -= sizeof(addresses[0]) * (argc + 1);
   memcpy(*esp, &addresses[0], sizeof(addresses[0]) * (argc + 1));
 
-  hex_dump(0, *esp, 4 * (argc + 1), false);
+  // hex_dump(0, *esp, 4 * (argc + 1), false);
 
   /* argv address */
   memcpy(*esp - 4, esp, 4);
@@ -363,7 +363,7 @@ load (const char *file_name_ori, void (**eip) (void), void **esp)
   *esp -= 4;
   memset(*esp, 0, 4);
 
-  hex_dump(0, *esp, 4 * 3, true);
+  // hex_dump(0, *esp, 4 * 3, true);
 
   success = true;
 
