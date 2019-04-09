@@ -96,7 +96,7 @@ int read (int fd, void *buffer, unsigned size) {
 int write (int fd, const void *buffer, unsigned size) 
 {
   if (fd == 1) {
-    putbuf (buff, size);
+    putbuf (buffer, size);
   }
 }
 

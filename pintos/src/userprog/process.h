@@ -12,5 +12,5 @@ void process_activate (void);
 struct fd_file_map { 
     int fd;  
     struct file * file;    
-}
+};
 #endif /* userprog/process.h */
