@@ -130,7 +130,7 @@ process_activate (void)
   struct thread *t = thread_current ();
 
   /* Activate thread's page tables. */
-  printf("pagedir: %s\n", t->pagedir);
+  //printf("pagedir: %s\n", t->pagedir);
   pagedir_activate (t->pagedir);
 
   /* Set thread's kernel stack for use in processing
@@ -214,7 +214,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name_ori, void (**eip) (void), void **esp)
 {
-  printf("In                 \n");
+  //printf("In                 \n");
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -236,10 +236,10 @@ load (const char *file_name_ori, void (**eip) (void), void **esp)
   char *token, *save_ptr;
   for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
        token = strtok_r (NULL, " ", &save_ptr)) {
+    argv[argc] = token;
     argc++;
-    argv[argc] = save_ptr;
   }
-
+  
   /* contains a zero at the end */
   char *addresses[argc + 1];
   addresses[argc] = 0;
@@ -350,30 +350,32 @@ load (const char *file_name_ori, void (**eip) (void), void **esp)
   // hex_dump(0, *esp, strlen(file_name_ori), true);
 
   /* word align */
-  void *new_esp = ROUND_DOWN((long) *esp, (long) 4);
-  memset(new_esp, 0, *esp - new_esp);
-  *esp = new_esp;
+  while ( ((long) *esp) % 4 != 0) {
+    *esp -= 1;
+    memset(*esp, 0, 1);
+  }
 
   /* argv */
   *esp -= sizeof(addresses[0]) * (argc + 1);
   memcpy(*esp, &addresses[0], sizeof(addresses[0]) * (argc + 1));
 
-  // hex_dump(0, *esp, 4 * (argc + 1), false);
-
+  //
   /* argv address */
+  *esp -= 12;
+  memset(*esp, 0, 12);
+  *esp += 12;
+
   memcpy(*esp - 4, esp, 4);
   *esp -= 4;
 
   /* argc */
   *esp -= 4;
   memcpy(*esp, &argc, 4);
-
   /* return address */
   *esp -= 4;
   memset(*esp, 0, 4);
 
-  // hex_dump(0, *esp, 4 * 3, true);
-
+  //hex_dump(0, *esp, 4 * 10, true);
   success = true;
 
  done:
