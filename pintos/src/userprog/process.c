@@ -359,12 +359,7 @@ load (const char *file_name_ori, void (**eip) (void), void **esp)
   *esp -= sizeof(addresses[0]) * (argc + 1);
   memcpy(*esp, &addresses[0], sizeof(addresses[0]) * (argc + 1));
 
-  //
   /* argv address */
-  *esp -= 12;
-  memset(*esp, 0, 12);
-  *esp += 12;
-
   memcpy(*esp - 4, esp, 4);
   *esp -= 4;
 

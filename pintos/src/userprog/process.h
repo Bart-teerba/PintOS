@@ -8,4 +8,9 @@ int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
 
+/* Add struct. */
+struct fd_file_map { 
+    int fd;  
+    struct file * file;    
+}
 #endif /* userprog/process.h */

@@ -5,6 +5,19 @@
 #include "threads/thread.h"
 
 static void syscall_handler (struct intr_frame *);
+int create (const char *file, unsigned initial_size);
+int remove (const char *file);
+int open (const char *file);
+int filesize (int fd);
+int read (int fd, void *buffer, unsigned size);
+int write (int fd, const void *buffer, unsigned size);
+void seek (int fd, unsigned position);
+unsigned tell (int fd);
+void close (int fd);
+
+/* Add global variable. */
+struct lock *filesys_lock;
+
 
 void
 syscall_init (void)
@@ -33,18 +46,68 @@ syscall_handler (struct intr_frame *f UNUSED)
   } else if (args[0] == SYS_WAIT) {
     f->eax = args[1];
     //printf("Wait status: %d\n", args[1]);
+  } else if (args[0] == SYS_CREATE) {
+
+  } else if (args[0] == SYS_REMOVE) {
+
+  } else if (args[0] == SYS_OPEN) {
+
+  } else if (args[0] == SYS_FILESIZE) {
+
+  } else if (args[0] == SYS_READ) {
+
   } else if (args[0] == SYS_WRITE) {
     int fd = args[1];
     void * buff = args[2];
     size_t size = args[3];
-    if (fd == 1) {
-      putbuf (buff, size);
-    }
+    write(fd, buff, size);
+  } else if (args[0] == SYS_SEEK) {
+
+  } else if (args[0] == SYS_TELL) {
+
+  } else if (args[0] == SYS_CLOSE) {
+
   }
 
 }
 
+int create (const char *file, unsigned initial_size) 
+{
 
-int write (int fd, const void *buffer, unsigned size) {
+};  
 
+int remove (const char *file) {
+
+};
+
+int open (const char *file) {
+
+};
+
+int filesize (int fd) {
+
+};
+
+int read (int fd, void *buffer, unsigned size) {
+
+
+};
+
+int write (int fd, const void *buffer, unsigned size) 
+{
+  if (fd == 1) {
+    putbuf (buff, size);
+  }
 }
+
+void seek (int fd, unsigned position) {
+
+};
+
+unsigned tell (int fd) {
+
+};
+
+void close (int fd) {
+
+};
