@@ -137,6 +137,24 @@ void wait_status_helper(struct wait_status *ws) {
 int
 process_wait (tid_t child_tid UNUSED)
 {
+<<<<<<< HEAD
+=======
+  struct thread *cur = thread_current ();
+  struct list_elem *e;
+  struct list all_list = cur->children;
+  int find_waited_thread = 0;
+  for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e)) {
+    struct thread *t = list_entry (e, struct thread, allelem);
+    if (t->tid == child_tid) {
+      find_waited_thread = 1;
+      break;
+    }
+  }
+
+  if (!find_waited_thread) {
+    return -1;
+  }
+>>>>>>> parent of b3e5d1f... no wait
 
   // sema_down(&ws->dead);
   // int exit_code = ws->exit_code;
