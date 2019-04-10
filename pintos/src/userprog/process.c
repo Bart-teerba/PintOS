@@ -136,7 +136,7 @@ void wait_status_helper(struct wait_status *ws) {
    does nothing. */
 int
 process_wait (tid_t child_tid UNUSED)
-{
+{/*
 <<<<<<< HEAD
 =======
   struct thread *cur = thread_current ();
@@ -155,7 +155,7 @@ process_wait (tid_t child_tid UNUSED)
     return -1;
   }
 >>>>>>> parent of b3e5d1f... no wait
-
+*/
   // sema_down(&ws->dead);
   // int exit_code = ws->exit_code;
   // wait_status_helper(ws);
