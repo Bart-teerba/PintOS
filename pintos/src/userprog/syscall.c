@@ -29,7 +29,9 @@ syscall_init (void)
 void validate_addr (void *ptr) {
   if (!is_user_vaddr(ptr)) {
     //exit(-1);
+    //thread_exit(); or process_exit();
   }
+  //check size
 }
 
 static void
@@ -83,10 +85,10 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 }
 
-int create (const char *file, unsigned initial_size) 
+int create (const char *file, unsigned initial_size)
 {
 
-};  
+};
 
 int remove (const char *file) {
 
@@ -105,7 +107,7 @@ int read (int fd, void *buffer, unsigned size) {
 
 };
 
-int write (int fd, const void *buffer, unsigned size) 
+int write (int fd, const void *buffer, unsigned size)
 {
   if (fd == 1) {
     putbuf (buffer, size);
@@ -123,4 +125,3 @@ unsigned tell (int fd) {
 void close (int fd) {
 
 };
-
