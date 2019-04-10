@@ -33,10 +33,11 @@ syscall_exit (int status) {
 }
 
 void validate_addr (void *ptr) {
-  if (!is_user_vaddr(ptr)) {
+  if (!is_user_vaddr(ptr) || !is_user_vaddr(ptr+sizeof(*ptr))) {
     syscall_exit(-1);
     //thread_exit(); or process_exit();
   }
+   
   //check size
 }*/
 
