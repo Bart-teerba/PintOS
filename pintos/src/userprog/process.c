@@ -141,12 +141,11 @@ process_wait (tid_t child_tid UNUSED)
   struct list_elem *e;
   struct list all_list = cur->children;
   int find_waited_thread = 0;
-  struct thread *child;
+  struct wait_status *ws;
   for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e)) {
-    struct thread *t = list_entry (e, struct thread, allelem);
-    if (t->tid == child_tid) {
+    ws = list_entry (e, struct wait_status, elem);
+    if (ws->tid == child_tid) {
       find_waited_thread = 1;
-      child = t;
       break;
     }
   }
@@ -155,7 +154,6 @@ process_wait (tid_t child_tid UNUSED)
     return -1;
   }
 
-  struct wait_status *ws = child->wait_status;
   sema_down(&ws->dead);
   int exit_code = ws->exit_code;
   wait_status_helper(ws);
@@ -191,8 +189,7 @@ process_exit (void)
   struct list_elem *e;
   struct list all_list = cur->children;
   for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e)) {
-    struct thread *t = list_entry (e, struct thread, allelem);
-    struct wait_status *t_ws = t->wait_status;
+    struct wait_status *t_ws = list_entry (e, struct wait_status, elem);
     wait_status_helper(t_ws);
   }
 
