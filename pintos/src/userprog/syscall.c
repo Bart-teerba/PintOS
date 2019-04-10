@@ -25,7 +25,7 @@ syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
-
+/*
 void
 syscall_exit (int status) {
   printf("%s: exit(%d)\n", &thread_current ()->name, status);
@@ -38,21 +38,23 @@ void validate_addr (void *ptr) {
     //thread_exit(); or process_exit();
   }
   //check size
-}
+}*/
 
 static void
 syscall_handler (struct intr_frame *f UNUSED)
 {
   uint32_t* args = ((uint32_t*) f->esp);
-  validate_addr((void*) args[0]);
-  validate_addr((void*) args[1]);
-  validate_addr((void*) args[2]);
-  validate_addr((void*) args[3]);
+  //validate_addr((void*) args[0]);
+  //validate_addr((void*) args[1]);
+  //validate_addr((void*) args[2]);
+  //validate_addr((void*) args[3]);
 
   //printf("System call number: %d\n", args[0]);
   if (args[0] == SYS_EXIT) {
     f->eax = args[1];
-    syscall_exit(args[1]);
+    printf("%s: exit(%d)\n", &thread_current ()->name, args[1]);
+    thread_exit();
+    //syscall_exit(args[1]);
   } else if (args[0] == SYS_HALT) {
     //printf("System power off\n");
     shutdown_power_off();
