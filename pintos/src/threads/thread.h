@@ -119,7 +119,7 @@ struct thread
     struct list children;               /* A list of wait status of children. */
     bool load_success;                  /* True = load successfully,
                                          False = load unsuccessfully. */
-    semaphore child_load_sema;          /* Semaphore to make sure child has finished loading */
+    struct semaphore child_load_sema;          /* Semaphore to make sure child has finished loading */
   };
 
 /* If false (default), use round-robin scheduler.

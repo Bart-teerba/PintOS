@@ -473,7 +473,7 @@ init_thread (struct thread *t, const char *name, int priority)
 
   wait_status_init(&t->wait_status, t->tid);
   list_init(&t->children);
-  sema_init(&t->child_load_sema, 0)
+  sema_init(&t->child_load_sema, 0);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -595,7 +595,7 @@ void wait_status_init (struct wait_status *ws, tid_t tid){
   lock_init (&ws->lock);
   ws->ref_cnt = 2;
   ws->tid = tid;
-  ws-exit_code = NULL;
+  ws->exit_code = NULL;
   sema_init (&ws->dead, 0);
 }
 
