@@ -81,7 +81,6 @@ kill (struct intr_frame *f)
 
   /* The interrupt frame's code segment value tells us where the
      exception originated. */
-  struct thread *t = thread_current ();
   switch (f->cs)
     {
     case SEL_UCSEG:
@@ -90,9 +89,6 @@ kill (struct intr_frame *f)
       printf ("%s: dying due to interrupt %#04x (%s).\n",
               thread_name (), f->vec_no, intr_name (f->vec_no));
       intr_dump_frame (f);
-
-      /* sema up before exit */
-      sema_up(&(t->wait_status)->dead);
       thread_exit ();
 
     case SEL_KCSEG:
@@ -108,8 +104,6 @@ kill (struct intr_frame *f)
          kernel. */
       printf ("Interrupt %#04x (%s) in unknown segment %04x\n",
              f->vec_no, intr_name (f->vec_no), f->cs);
-
-      sema_up(&(t->wait_status)->dead);
       thread_exit ();
     }
 }
@@ -164,3 +158,4 @@ page_fault (struct intr_frame *f)
           user ? "user" : "kernel");
   kill (f);
 }
+

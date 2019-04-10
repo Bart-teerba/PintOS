@@ -27,12 +27,6 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
-
-struct argStruct {
-  char *file_name;
-  struct thread *parent;
-};
-
 tid_t
 process_execute (const char *file_name)
 {
@@ -47,36 +41,19 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-
-  struct thread *t = thread_current ();
-  struct argStruct args;
-  args.file_name = fn_copy;
-  args.parent = t;
-
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, &args);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
-
-
-  sema_down(&t->child_load_sema);
-  if (t->load_success) {
-    return tid;
-  } else {
-    return -1;
-  }
+  return tid;
 }
 
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *args_)
+start_process (void *file_name_)
 {
-  struct argStruct *args = args_;
-  char *file_name = args->file_name;
-  struct thread *parent = args->parent;
-  struct thread *t = thread_current ();
-
+  char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
 
@@ -86,14 +63,6 @@ start_process (void *args_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-
-  /* set load status */
-  parent->load_success = success;
-  if (success) {
-    /* add child's wait_status to children list */
-    list_push_back(&parent->children, &(t->wait_status)->elem);
-  }
-  sema_up(&parent->child_load_sema);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -110,21 +79,6 @@ start_process (void *args_)
   NOT_REACHED ();
 }
 
-
-void wait_status_helper(struct wait_status *ws) {
-  lock_acquire(&ws->lock);
-  ws->ref_cnt -= 1;
-  if (ws->ref_cnt == 0) {
-    lock_release(&ws->lock);
-    list_remove(&ws->elem);
-    free(ws);
-  } else {
-    lock_release(&ws->lock);
-  }
-}
-
-
-
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
    exception), returns -1.  If TID is invalid or if it was not a
@@ -136,31 +90,8 @@ void wait_status_helper(struct wait_status *ws) {
    does nothing. */
 int
 process_wait (tid_t child_tid UNUSED)
-{/*
-<<<<<<< HEAD
-=======
-  struct thread *cur = thread_current ();
-  struct list_elem *e;
-  struct list all_list = cur->children;
-  int find_waited_thread = 0;
-  for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e)) {
-    struct thread *t = list_entry (e, struct thread, allelem);
-    if (t->tid == child_tid) {
-      find_waited_thread = 1;
-      break;
-    }
-  }
-
-  if (!find_waited_thread) {
-    return -1;
-  }
->>>>>>> parent of b3e5d1f... no wait
-*/
-  // sema_down(&ws->dead);
-  // int exit_code = ws->exit_code;
-  // wait_status_helper(ws);
-  // return exit_code;
-  sema_down(&temporary);
+{
+  sema_down (&temporary);
   return 0;
 }
 
@@ -187,18 +118,7 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  // struct wait_status *cur_ws = cur->wait_status;
-  // wait_status_helper(cur_ws);
-  //
-  // struct list_elem *e;
-  // struct list all_list = cur->children;
-  // for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e)) {
-  //   struct wait_status *t_ws = list_entry (e, struct wait_status, elem);
-  //   wait_status_helper(t_ws);
-  // }
-
-  // sema_up (&cur_ws->dead);
-  sema_up(&temporary);
+  sema_up (&temporary);
 }
 
 /* Sets up the CPU for running user code in the current
@@ -210,7 +130,6 @@ process_activate (void)
   struct thread *t = thread_current ();
 
   /* Activate thread's page tables. */
-  //printf("pagedir: %s\n", t->pagedir);
   pagedir_activate (t->pagedir);
 
   /* Set thread's kernel stack for use in processing
@@ -292,39 +211,14 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *file_name_ori, void (**eip) (void), void **esp)
+load (const char *file_name, void (**eip) (void), void **esp)
 {
-  //printf("In                 \n");
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
   off_t file_ofs;
   bool success = false;
   int i;
-
-  /* task1 -- parsing */
-  int argc = 0;
-  char *argv[32];
-
-  /* we don't want const char * */
-  char file_name_temp[strlen(file_name_ori) + 1];
-  char *file_name = &file_name_temp[0];
-  strlcpy (file_name, file_name_ori, strlen(file_name_ori) + 1);
-  argv[0] = file_name;
-
-  /* parse argv */
-  char *token, *save_ptr;
-  for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
-       token = strtok_r (NULL, " ", &save_ptr)) {
-    argv[argc] = token;
-    argc++;
-  }
-
-  /* contains a zero at the end */
-  char *addresses[argc + 1];
-  addresses[argc] = 0;
-  /* parsing end */
-
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -419,39 +313,6 @@ load (const char *file_name_ori, void (**eip) (void), void **esp)
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
-  /* start head */
-  /* argv content */
-  for (i = argc - 1; i >= 0; i--) {
-    *esp -= (strlen(argv[i]) + 1);
-    memcpy(*esp, argv[i], strlen(argv[i]) + 1);
-    addresses[i] = *esp;
-  }
-
-  // hex_dump(0, *esp, strlen(file_name_ori), true);
-
-  /* word align */
-  while ( ((long) *esp) % 4 != 0) {
-    *esp -= 1;
-    memset(*esp, 0, 1);
-  }
-
-  /* argv */
-  *esp -= sizeof(addresses[0]) * (argc + 1);
-  memcpy(*esp, &addresses[0], sizeof(addresses[0]) * (argc + 1));
-
-  //
-  /* argv address */
-  memcpy(*esp - 4, esp, 4);
-  *esp -= 4;
-
-  /* argc */
-  *esp -= 4;
-  memcpy(*esp, &argc, 4);
-  /* return address */
-  *esp -= 4;
-  memset(*esp, 0, 4);
-
-  //hex_dump(0, *esp, 4 * 10, true);
   success = true;
 
  done:

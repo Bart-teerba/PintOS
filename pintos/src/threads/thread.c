@@ -459,22 +459,10 @@ init_thread (struct thread *t, const char *name, int priority)
 
   memset (t, 0, sizeof *t);
   t->status = THREAD_BLOCKED;
-
-  char *token, *save_ptr;
-  for (token = strtok_r (name, " ", &save_ptr); token != NULL;
-       token = strtok_r (NULL, " ", &save_ptr)) {
-    break;
-  }
-
-  strlcpy (t->name, token, strlen(token) + 1);
+  strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-
-  //t->wait_status = (struct wait_status *) malloc(sizeof(struct wait_status));
-  wait_status_init(t->wait_status, t->tid);
-  list_init(&t->children);
-  sema_init(&t->child_load_sema, 0);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -590,16 +578,6 @@ allocate_tid (void)
 
   return tid;
 }
-
-/* init function for wait_status struct. */
-void wait_status_init (struct wait_status *ws, tid_t tid){
-  lock_init (&ws->lock);
-  ws->ref_cnt = 2;
-  ws->tid = tid;
-  ws->exit_code = NULL;
-  sema_init (&ws->dead, 0);
-}
-
 
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
