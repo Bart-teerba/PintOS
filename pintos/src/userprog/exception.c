@@ -92,7 +92,7 @@ kill (struct intr_frame *f)
       intr_dump_frame (f);
 
       /* sema up before exit */
-      sema_up(&(t->wait_status).dead);
+      sema_up(&(t->wait_status)->dead);
       thread_exit ();
 
     case SEL_KCSEG:
@@ -109,7 +109,7 @@ kill (struct intr_frame *f)
       printf ("Interrupt %#04x (%s) in unknown segment %04x\n",
              f->vec_no, intr_name (f->vec_no), f->cs);
 
-      sema_up(&(t->wait_status).dead);
+      sema_up(&(t->wait_status)->dead);
       thread_exit ();
     }
 }
