@@ -69,7 +69,7 @@ process_execute (const char *file_name)
 
 /* A thread function that loads a user process and starts it
    running. */
-static void
+static void 
 start_process (struct argStruct *args)
 {
   void *file_name_ = args->file_name_;
