@@ -471,7 +471,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
-  t->wait_status = (struct wait_status *) malloc(sizeof(struct wait_status));
+  //t->wait_status = (struct wait_status *) malloc(sizeof(struct wait_status));
   wait_status_init(t->wait_status, t->tid);
   list_init(&t->children);
   sema_init(&t->child_load_sema, 0);
