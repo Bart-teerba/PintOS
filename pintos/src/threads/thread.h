@@ -122,6 +122,11 @@ struct thread
     bool load_success;                  /* True = load successfully,
                                          False = load unsuccessfully. */
     struct semaphore child_load_sema;          /* Semaphore to make sure child has finished loading */
+
+    /* used by task3. */
+    struct file* cur_file;
+    struct list fd_list;
+    int next_fd;
   };
 
 /* If false (default), use round-robin scheduler.
