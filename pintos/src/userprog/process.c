@@ -29,7 +29,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    thread id, or TID_ERROR if the thread cannot be created. */
 
 struct argStruct {
-  void *file_name_;
+  char *file_name;
   struct thread *parent;
 };
 
@@ -50,7 +50,7 @@ process_execute (const char *file_name)
 
   struct thread *t = thread_current ();
   struct argStruct args;
-  args.file_name_ = fn_copy;
+  args.file_name = fn_copy;
   args.parent = t;
 
   /* Create a new thread to execute FILE_NAME. */
@@ -69,14 +69,14 @@ process_execute (const char *file_name)
 
 /* A thread function that loads a user process and starts it
    running. */
-static void 
-start_process (struct argStruct *args)
+static void
+start_process (void *args_)
 {
-  void *file_name_ = args->file_name_;
+  struct argStruct *args = args_;
+  char *file_name = args->file_name;
   struct thread *parent = args->parent;
   struct thread *t = thread_current ();
 
-  char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
 
@@ -91,7 +91,7 @@ start_process (struct argStruct *args)
   parent->load_success = success;
   if (success) {
     /* add child's wait_status to children list */
-    list_push_back(&parent->children, &(t->wait_status)->elem);
+    list_push_back(&parent->children, &(t->wait_status).elem);
   }
   sema_up(&parent->child_load_sema);
 
@@ -135,7 +135,7 @@ process_wait (tid_t child_tid UNUSED)
   }
 
   if (!find_waited_thread) {
-    return -1
+    return -1;
   }
 
   sema_down (&temporary);
