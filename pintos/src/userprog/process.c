@@ -110,6 +110,21 @@ start_process (void *args_)
   NOT_REACHED ();
 }
 
+
+void wait_status_helper(struct wait_status *ws) {
+  lock_acquire(&ws->lock);
+  ws->ref_cnt -= 1;
+  if (ws->ref_cnt == 0) {
+    lock_release(&ws->lock);
+    list_remove(&ws->elem);
+    free(ws);
+  } else {
+    lock_release(&ws->lock);
+  }
+}
+
+
+
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
    exception), returns -1.  If TID is invalid or if it was not a
@@ -140,19 +155,10 @@ process_wait (tid_t child_tid UNUSED)
     return -1;
   }
 
-  sema_down (&temporary);
   struct wait_status *ws = child->wait_status;
   sema_down(&ws->dead);
   int exit_code = ws->exit_code;
-  lock_acquire(&ws->lock);
-  ws->ref_cnt -= 1;
-  if (ws->ref_cnt == 0) {
-    lock_release(&ws->lock);
-    list_remove(&ws->elem);
-    free(ws);
-  } else {
-    lock_release(&ws->lock);
-  }
+  wait_status_helper(ws);
   return exit_code;
 }
 
@@ -179,7 +185,18 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  sema_up (&temporary);
+  struct wait_status *cur_ws = cur->wait_status;
+  wait_status_helper(cur_ws);
+
+  struct list_elem *e;
+  struct list all_list = cur->children;
+  for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e)) {
+    struct thread *t = list_entry (e, struct thread, allelem);
+    struct wait_status *t_ws = t->wait_status;
+    wait_status_helper(t_ws);
+  }
+
+  sema_up (&cur_ws->dead);
 }
 
 /* Sets up the CPU for running user code in the current
