@@ -26,9 +26,15 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
+void
+syscall_exit (int status) {
+  printf("%s: exit(%d)\n", &thread_current ()->name, status);
+  thread_exit();
+}
+
 void validate_addr (void *ptr) {
   if (!is_user_vaddr(ptr)) {
-    //exit(-1);
+    syscall_exit(-1);
     //thread_exit(); or process_exit();
   }
   //check size
@@ -46,8 +52,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   //printf("System call number: %d\n", args[0]);
   if (args[0] == SYS_EXIT) {
     f->eax = args[1];
-    printf("%s: exit(%d)\n", &thread_current ()->name, args[1]);
-    thread_exit();
+    syscall_exit(args[1]);
   } else if (args[0] == SYS_HALT) {
     //printf("System power off\n");
     shutdown_power_off();
