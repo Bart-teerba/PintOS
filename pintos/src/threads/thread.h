@@ -82,6 +82,18 @@ typedef int tid_t;
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
+struct wait_status {
+  struct list_elem elem;            /* 'children' list element. */
+  struct lock lock;                 /* Protects ref_cnt. */
+  int ref_cnt;                      /* 2 = child and parent both alive, 
+                                       1 = either child or parent alive, 
+                                       0 = child and parent both dead. */
+  tid_t tid;                        /* Child thread id. */        
+  int exit_code;                    /* Child exit code, if dead. */
+  struct semaphore dead;            /* 0 = child alive,
+                                       1 = child dead. */
+};
+
 struct thread
   {
     /* Owned by thread.c. */
@@ -102,6 +114,13 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+    struct wait_status *wait_status;    /* This process’s wait state. */
+    struct list children;               /* A list of wait status of children. */
+    bool load_success;                  /* True = load successfully,
+                                         False = load unsuccessfully. */
+    semaphore child_load_sema;          /* Semaphore to make sure child has finished loading */
+    semaphore parent_check_load_sema;   /* Semaphore to make sure parent has viewed child's loading status. */ 
   };
 
 /* If false (default), use round-robin scheduler.

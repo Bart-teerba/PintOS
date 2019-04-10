@@ -91,6 +91,22 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED)
 {
+  struct thread *cur = thread_current ();
+  struct list_elem *e;
+  struct list all_list = cur->children;
+  int find_waited_thread = 0;
+  for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e)) {
+    struct thread *t = list_entry (e, struct thread, allelem);
+    if (t->tid == child_tid) {
+      find_waited_thread = 1;
+      break;
+    }
+  }
+  
+  if (!find_waited_thread) {
+    return -1
+  }
+  
   sema_down (&temporary);
   return 0;
 }

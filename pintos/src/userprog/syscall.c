@@ -56,7 +56,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     f->eax = args[1];
     //printf("Execute: %d\n", args[1]);
   } else if (args[0] == SYS_WAIT) {
-    f->eax = args[1];
+    f->eax = process_wait(args[1]);
     //printf("Wait status: %d\n", args[1]);
   } else if (args[0] == SYS_CREATE) {
 
@@ -123,3 +123,4 @@ unsigned tell (int fd) {
 void close (int fd) {
 
 };
+
