@@ -3,7 +3,6 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-#include "threads/vaddr.h"
 
 static void syscall_handler (struct intr_frame *);
 int create (const char *file, unsigned initial_size);
@@ -32,6 +31,7 @@ syscall_exit (int status) {
   thread_exit();
 }
 
+<<<<<<< HEAD
 void validate_addr (void *ptr) {
   if (!is_user_vaddr(ptr) || !is_user_vaddr(ptr+sizeof(*ptr))) {
     syscall_exit(-1);
@@ -41,15 +41,20 @@ void validate_addr (void *ptr) {
   //check size
 }*/
 
+=======
+>>>>>>> parent of 4f28070... test
 static void
 syscall_handler (struct intr_frame *f UNUSED)
 {
   uint32_t* args = ((uint32_t*) f->esp);
+<<<<<<< HEAD
   //validate_addr((void*) args[0]);
   //validate_addr((void*) args[1]);
   //validate_addr((void*) args[2]);
   //validate_addr((void*) args[3]);
 
+=======
+>>>>>>> parent of 4f28070... test
   //printf("System call number: %d\n", args[0]);
   if (args[0] == SYS_EXIT) {
     f->eax = args[1];
