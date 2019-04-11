@@ -53,15 +53,16 @@ syscall_handler (struct intr_frame *f UNUSED)
 {
   uint32_t* args = ((uint32_t*) f->esp);
   validate_addr((void*) args[0]);
-  validate_addr((void*) args[1]);
-  validate_addr((void*) args[2]);
-  validate_addr((void*) args[3]);
+  // validate_addr((void*) args[1]);
+  // validate_addr((void*) args[2]);
+  // validate_addr((void*) args[3]);
 
   //printf("System call number: %d\n", args[0]);
   if (args[0] == SYS_EXIT) {
-    f->eax = process_exit();
     (thread_current ()->wait_status)->exit_code = args[1];
     printf("%s: exit(%d)\n", &thread_current ()->name, args[1]);
+    f->eax = args[1];
+    // process_exit();
     thread_exit();
     //syscall_exit(args[1]);
   } else if (args[0] == SYS_HALT) {
