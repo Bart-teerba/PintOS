@@ -29,6 +29,11 @@ struct argStruct {
   struct thread *parent;
 };
 
+static inline bool
+is_interior (struct list_elem *elem)
+{
+  return elem != NULL && elem->prev != NULL && elem->next != NULL;
+}
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -101,18 +106,18 @@ start_process (void *args_)
   }
   /* set load status */
   parent->load_success = success;
-  /* add child's wait_status to children list */
-  list_push_back(&parent->children, &(t->wait_status)->elem);
+  if (success) {
+    /* add child's wait_status to children list */
+    list_push_back(&parent->children, &(t->wait_status)->elem);
+  }
   sema_up(&parent->child_load_sema);
 
 
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) {
-    (t->wait_status)->ref_cnt -= 1;
+  if (!success)
     thread_exit ();
-  }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -129,7 +134,9 @@ void wait_status_helper(struct wait_status *ws) {
   ws->ref_cnt -= 1;
   if (ws->ref_cnt == 0) {
     lock_release(&ws->lock);
-    list_remove(&ws->elem);
+    if (is_interior(&ws->elem)) {
+      list_remove(&ws->elem);
+    }
     free(ws);
   } else {
     lock_release(&ws->lock);
@@ -194,31 +201,22 @@ process_exit (void)
      to the kernel-only page directory. */
   pd = cur->pagedir;
   if (pd != NULL)
-  {
-    /* Correct ordering here is crucial.  We must set
-       cur->pagedir to NULL before switching page directories,
-       so that a timer interrupt can't switch back to the
-       process page directory.  We must activate the base page
-       directory before destroying the process's page
-       directory, or our active page directory will be one
-       that's been freed (and cleared). */
-    cur->pagedir = NULL;
-    pagedir_activate (NULL);
-    pagedir_destroy (pd);
-  }
-  struct fd_file_map* cur_map;
-  while (!list_empty (&cur->fd_list))
-  {
-    e = list_pop_front (&cur->fd_list);
-    cur_map = list_entry (e, struct fd_file_map, elem);
-    free(cur_map);
-  }
-
+    {
+      /* Correct ordering here is crucial.  We must set
+         cur->pagedir to NULL before switching page directories,
+         so that a timer interrupt can't switch back to the
+         process page directory.  We must activate the base page
+         directory before destroying the process's page
+         directory, or our active page directory will be one
+         that's been freed (and cleared). */
+      cur->pagedir = NULL;
+      pagedir_activate (NULL);
+      pagedir_destroy (pd);
+    }
   if (cur->cur_file != NULL) {
     file_allow_write(cur->cur_file);
     file_close (cur->cur_file);
   }
-
   sema_up (&cur_ws->dead);
 }
 
