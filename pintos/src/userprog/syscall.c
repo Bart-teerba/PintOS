@@ -41,7 +41,7 @@ syscall_exit (int status) {
 }
 
 void validate_addr (void *ptr) {
-  if (!is_user_vaddr(ptr)) {
+  if (!is_user_vaddr(ptr) && pagedir_get_page(thread_current()->pagedir, ptr) != NULL) {
     syscall_exit(-1);
     //thread_exit(); or process_exit();
   }
@@ -52,7 +52,7 @@ static void
 syscall_handler (struct intr_frame *f UNUSED)
 {
   uint32_t* args = ((uint32_t*) f->esp);
-  validate_addr((void*) args[0]);
+  validate_addr(args);
   // validate_addr((void*) args[1]);
   // validate_addr((void*) args[2]);
   // validate_addr((void*) args[3]);
@@ -72,6 +72,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     f->eax = args[1] + 1;
     //printf("Practice: %d + 1 = %d\n", args[1], args[1] + 1);
   } else if (args[0] == SYS_EXEC) {
+    validate_addr(&args[1]);
     f->eax = process_execute(args[1]);
     //printf("Execute: %d\n", args[1]);
   } else if (args[0] == SYS_WAIT) {
