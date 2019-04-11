@@ -85,6 +85,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     f->eax = process_wait(args[1]);
     //printf("Wait status: %d\n", args[1]);
   } else if (args[0] == SYS_CREATE) {
+    validate_addr(args[1],f,0);
     validate_addr(&args[1],f,2);
     char *file = args[1];
     unsigned initial_size = args[2];
@@ -192,6 +193,9 @@ struct file* get_file(int fd)
 
 bool create (const char *file, unsigned initial_size)
 {
+  if (file == NULL) {
+    return 0;
+  }
   lock_acquire(&filesys_lock);
   bool success = filesys_create(file, initial_size);
   lock_release(&filesys_lock);
@@ -206,6 +210,9 @@ bool remove (const char *file) {
 };
 
 int open (const char *file) {
+  if (file == NULL) {
+    return 0;
+  }
   lock_acquire(&filesys_lock);
   struct file *opened = filesys_open(file);
   int fd;
