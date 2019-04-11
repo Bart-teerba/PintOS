@@ -46,9 +46,7 @@ void validate_addr (void *ptr, struct intr_frame *f, int num, int size) {
   //printf("%p\n", ptr);
   if (!is_user_vaddr(ptr) || !is_user_vaddr(ptr + size * num - 1) || pagedir_get_page(thread_current()->pagedir, ptr) == NULL) {
     syscall_exit(-1,f);
-    //thread_exit(); or process_exit();
   }
-  //check size
 }
 
 static void
@@ -76,6 +74,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (args[0] == SYS_EXEC) {
     validate_addr(&args[1],f, 1, 4);
+    validate_addr(args[1],f, 1, 4);
 
     f->eax = process_execute(args[1]);
     //printf("Execute: %d\n", args[1]);
