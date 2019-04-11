@@ -92,9 +92,9 @@ kill (struct intr_frame *f)
       intr_dump_frame (f);
 
       t = thread_current ();
-      sema_up(&(t->wait_status)->dead);
       (t->wait_status)->exit_code = -1;
       f->eax = -1;
+      printf("%s: exit(%d)\n", thread_current()->name, -1);
 
       thread_exit ();
 
@@ -113,10 +113,9 @@ kill (struct intr_frame *f)
              f->vec_no, intr_name (f->vec_no), f->cs);
 
       t = thread_current ();
-      sema_up(&(t->wait_status)->dead);
       (t->wait_status)->exit_code = -1;
       f->eax = -1;
-
+      printf("%s: exit(%d)\n", thread_current()->name, -1);
       thread_exit ();
     }
 }

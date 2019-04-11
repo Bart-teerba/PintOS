@@ -83,9 +83,9 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (args[0] == SYS_EXEC) {
     validate_addr(&args[1], f, 1, sizeof(uint32_t * ));
-    validate_addr(args[1], f, 1, 1);
+    validate_addr((void *) args[1], f, 1, 1);
 
-    f->eax = process_execute(args[1]);
+    f->eax = process_execute((void *) args[1]);
     //printf("Execute: %d\n", args[1]);
 
   } else if (args[0] == SYS_WAIT) {
@@ -113,7 +113,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (args[0] == SYS_OPEN) {
     validate_addr(&args[1],f, 1, sizeof(uint32_t * ));
-    validate_addr(args[1],f,0, sizeof(uint32_t * ));
+    validate_addr((void *) args[1],f,0, sizeof(uint32_t * ));
 
     char *file = args[1];
     f->eax = open(file);
