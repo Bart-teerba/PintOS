@@ -96,9 +96,9 @@ start_process (void *args_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
-  // if (t->cur_file != NULL) {
-  //   file_deny_write(t->cur_file);
-  // }
+  if (t->cur_file != NULL) {
+    file_deny_write(t->cur_file);
+  }
   /* set load status */
   parent->load_success = success;
   if (success) {
@@ -206,9 +206,10 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  // if (cur->cur_file != NULL) {
-  //   file_allow_write(cur->cur_file);
-  // }
+  if (cur->cur_file != NULL) {
+    file_allow_write(cur->cur_file);
+    file_close (cur->cur_file);
+  }
   sema_up (&cur_ws->dead);
 }
 
@@ -344,8 +345,6 @@ load (const char *file_name_ori, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
-  t->cur_file = file;
-
   /* Open executable file. */
   file = filesys_open (file_name);
   if (file == NULL)
@@ -353,7 +352,7 @@ load (const char *file_name_ori, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", file_name);
       goto done;
     }
-
+  t->cur_file = file;
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -470,7 +469,6 @@ load (const char *file_name_ori, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
   return success;
 }
 
