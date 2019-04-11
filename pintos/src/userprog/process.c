@@ -29,11 +29,6 @@ struct argStruct {
   struct thread *parent;
 };
 
-static inline bool
-is_interior (struct list_elem *elem)
-{
-  return elem != NULL && elem->prev != NULL && elem->next != NULL;
-}
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -91,9 +86,6 @@ start_process (void *args_)
   struct intr_frame if_;
   bool success;
 
-  t->wait_status = (struct wait_status *) malloc(sizeof(struct wait_status));
-  wait_status_init(t->wait_status, t->tid);
-
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -108,7 +100,11 @@ start_process (void *args_)
   parent->load_success = success;
   if (success) {
     /* add child's wait_status to children list */
+    t->wait_status = (struct wait_status *) malloc(sizeof(struct wait_status));
+    wait_status_init(t->wait_status, t->tid);
     list_push_back(&parent->children, &(t->wait_status)->elem);
+  } else {
+    t->wait_status = NULL;
   }
   sema_up(&parent->child_load_sema);
 
@@ -116,8 +112,9 @@ start_process (void *args_)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success)
+  if (!success) {
     thread_exit ();
+  }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -129,17 +126,20 @@ start_process (void *args_)
   NOT_REACHED ();
 }
 
-void wait_status_helper(struct wait_status *ws) {
+int wait_status_helper(struct wait_status *ws) {
+  if (ws == NULL) {
+    return 0;
+  }
   lock_acquire(&ws->lock);
   ws->ref_cnt -= 1;
-  if (ws->ref_cnt == 0) {
+  if (ws->ref_cnt <= 0) {
     lock_release(&ws->lock);
-    if (is_interior(&ws->elem)) {
-      list_remove(&ws->elem);
-    }
+    list_remove(&ws->elem);
     free(ws);
+    return 0;
   } else {
     lock_release(&ws->lock);
+    return 1;
   }
 }
 
@@ -186,9 +186,6 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
-  struct wait_status *cur_ws = cur->wait_status;
-  wait_status_helper(cur_ws);
-
   struct list_elem *e;
   for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e)) {
     struct wait_status *t_ws = list_entry (e, struct wait_status, elem);
@@ -217,7 +214,9 @@ process_exit (void)
     file_allow_write(cur->cur_file);
     file_close (cur->cur_file);
   }
-  sema_up (&cur_ws->dead);
+  if (wait_status_helper(cur->wait_status) == 1) {
+    sema_up (&(cur->wait_status)->dead);
+  }
 }
 
 /* Sets up the CPU for running user code in the current
