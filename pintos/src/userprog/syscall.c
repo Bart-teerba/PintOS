@@ -51,7 +51,10 @@ void validate_addr (void *ptr, struct intr_frame *f, int num, int size) {
 
 void validate_str (void *ptr_, struct intr_frame *f) {
   char *ptr = ptr;
-  validate_addr(ptr, f, strlen(ptr) + 1, 1);
+  int i;
+  for (i = 0; i <= strlen(ptr); i++) {
+    validate_addr(ptr, f, 1, 1);
+  }
 }
 
 static void
