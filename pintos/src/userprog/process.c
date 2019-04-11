@@ -101,10 +101,8 @@ start_process (void *args_)
   }
   /* set load status */
   parent->load_success = success;
-  if (success) {
-    /* add child's wait_status to children list */
-    list_push_back(&parent->children, &(t->wait_status)->elem);
-  }
+  /* add child's wait_status to children list */
+  list_push_back(&parent->children, &(t->wait_status)->elem);
   sema_up(&parent->child_load_sema);
 
 
