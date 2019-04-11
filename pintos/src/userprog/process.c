@@ -24,7 +24,8 @@ static struct semaphore temporary;
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
-struct argStruct {
+struct argStruct 
+{
   char *file_name;
   struct thread *parent;
 };
@@ -39,7 +40,6 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-
   sema_init (&temporary, 0);
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -55,22 +55,25 @@ process_execute (const char *file_name)
 
   char *save_ptr;
 
-  if (file_name == NULL) {
-    return -1;
-  }
+  if (file_name == NULL)
+    {
+      return -1;
+    }
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, &args);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
 
-
-  sema_down(&t->child_load_sema);
-  if (t->load_success == 1) {
-    return tid;
-  } else {
-    return -1;
-  }
+  sema_down (&t->child_load_sema);
+  if (t->load_success == 1) 
+    {
+      return tid;
+    } 
+  else 
+    {
+      return -1;
+    }
 }
 
 /* A thread function that loads a user process and starts it
@@ -93,28 +96,34 @@ start_process (void *args_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
-  if (t->cur_file != NULL) {
-    file_deny_write(t->cur_file);
-  }
+  if (t->cur_file != NULL) 
+    {
+      file_deny_write (t->cur_file);
+    }
+
   /* set load status */
   parent->load_success = success;
-  if (success) {
-    /* add child's wait_status to children list */
-    t->wait_status = (struct wait_status *) malloc(sizeof(struct wait_status));
-    wait_status_init(t->wait_status, t->tid);
-    list_push_back(&parent->children, &(t->wait_status)->elem);
-  } else {
-    t->wait_status = NULL;
-  }
-  sema_up(&parent->child_load_sema);
+  if (success) 
+    {
+      /* add child's wait_status to children list */
+      t->wait_status = (struct wait_status *) malloc (sizeof (struct wait_status));
+      wait_status_init (t->wait_status, t->tid);
+      list_push_back (&parent->children, &(t->wait_status)->elem);
+    } 
+  else 
+    {
+      t->wait_status = NULL;
+    }
+  sema_up (&parent->child_load_sema);
 
 
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) {
-    thread_exit ();
-  }
+  if (!success) 
+    {
+      thread_exit ();
+    }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -126,21 +135,27 @@ start_process (void *args_)
   NOT_REACHED ();
 }
 
-int wait_status_helper(struct wait_status *ws) {
-  if (ws == NULL) {
-    return 0;
-  }
-  lock_acquire(&ws->lock);
+int 
+wait_status_helper(struct wait_status *ws) 
+{
+  if (ws == NULL) 
+    {
+      return 0;
+    }
+  lock_acquire (&ws->lock);
   ws->ref_cnt -= 1;
-  if (ws->ref_cnt <= 0) {
-    lock_release(&ws->lock);
-    list_remove(&ws->elem);
-    free(ws);
-    return 0;
-  } else {
-    lock_release(&ws->lock);
-    return 1;
-  }
+  if (ws->ref_cnt <= 0) 
+    {
+      lock_release (&ws->lock);
+      list_remove (&ws->elem);
+      free (ws);
+      return 0;
+    } 
+  else 
+    {
+      lock_release (&ws->lock);
+      return 1;
+    }
 }
 
 
@@ -160,22 +175,24 @@ process_wait (tid_t child_tid UNUSED)
   struct list_elem *e;
   int find_waited_thread = 0;
   struct wait_status *ws;
-  for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e)) {
-    ws = list_entry (e, struct wait_status, elem);
-    if (ws->tid == child_tid) {
-      find_waited_thread = 1;
-      break;
+  for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e)) 
+    {
+      ws = list_entry (e, struct wait_status, elem);
+      if (ws->tid == child_tid) 
+        {
+          find_waited_thread = 1;
+          break;
+        }
     }
-  }
 
-  if (!find_waited_thread) {
-    return -1;
-  }
+  if (!find_waited_thread) 
+    {
+      return -1;
+    }
 
-
-  sema_down(&ws->dead);
+  sema_down (&ws->dead);
   int exit_code = ws->exit_code;
-  wait_status_helper(ws);
+  wait_status_helper (ws);
   return exit_code;
 }
 
@@ -185,14 +202,13 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
-
   struct list_elem *e;
-  for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e)) {
-    struct wait_status *t_ws = list_entry (e, struct wait_status, elem);
-    wait_status_helper(t_ws);
-  }
-
-
+  
+  for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e)) 
+    {
+      struct wait_status *t_ws = list_entry (e, struct wait_status, elem);
+      wait_status_helper (t_ws);
+    }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -210,13 +226,15 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  if (cur->cur_file != NULL) {
-    file_allow_write(cur->cur_file);
-    file_close (cur->cur_file);
-  }
-  if (wait_status_helper(cur->wait_status) == 1) {
-    sema_up (&(cur->wait_status)->dead);
-  }
+  if (cur->cur_file != NULL) 
+    {
+      file_allow_write (cur->cur_file);
+      file_close (cur->cur_file);
+    }
+  if (wait_status_helper(cur->wait_status) == 1) 
+    {
+      sema_up (&(cur->wait_status)->dead);
+    }
 }
 
 /* Sets up the CPU for running user code in the current
@@ -332,10 +350,11 @@ load (const char *file_name_ori, void (**eip) (void), void **esp)
   /* parse argv */
   char *token, *save_ptr;
   for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
-       token = strtok_r (NULL, " ", &save_ptr)) {
-    argv[argc] = token;
-    argc++;
-  }
+       token = strtok_r (NULL, " ", &save_ptr)) 
+    {
+      argv[argc] = token;
+      argc++;
+    }
 
   strlcpy (t->name, argv[0], sizeof t->name);
 
@@ -440,35 +459,37 @@ load (const char *file_name_ori, void (**eip) (void), void **esp)
 
   /* start head */
   /* argv content */
-  for (i = argc - 1; i >= 0; i--) {
-    *esp -= (strlen(argv[i]) + 1);
-    memcpy(*esp, argv[i], strlen(argv[i]) + 1);
-    addresses[i] = *esp;
-  }
+  for (i = argc - 1; i >= 0; i--) 
+    {
+      *esp -= (strlen (argv[i]) + 1);
+      memcpy (*esp, argv[i], strlen (argv[i]) + 1);
+      addresses[i] = *esp;
+    }
 
   // hex_dump(0, *esp, strlen(file_name_ori), true);
 
   /* word align */
-  while ( ((long) *esp) % 4 != 0) {
-    *esp -= 1;
-    memset(*esp, 0, 1);
-  }
+  while ( ((long) *esp) % 4 != 0) 
+    {
+      *esp -= 1;
+      memset (*esp, 0, 1);
+    }
 
   /* argv */
-  *esp -= sizeof(addresses[0]) * (argc + 1);
-  memcpy(*esp, &addresses[0], sizeof(addresses[0]) * (argc + 1));
+  *esp -= sizeof (addresses[0]) * (argc + 1);
+  memcpy (*esp, &addresses[0], sizeof (addresses[0]) * (argc + 1));
 
-  //
   /* argv address */
-  memcpy(*esp - 4, esp, 4);
+  memcpy (*esp - 4, esp, 4);
   *esp -= 4;
 
   /* argc */
   *esp -= 4;
-  memcpy(*esp, &argc, 4);
+  memcpy (*esp, &argc, 4);
+
   /* return address */
   *esp -= 4;
-  memset(*esp, 0, 4);
+  memset (*esp, 0, 4);
 
   //hex_dump(0, *esp, 4 * 10, true);
   success = true;

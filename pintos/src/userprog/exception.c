@@ -94,8 +94,7 @@ kill (struct intr_frame *f)
       t = thread_current ();
       (t->wait_status)->exit_code = -1;
       f->eax = -1;
-      printf("%s: exit(%d)\n", thread_current()->name, -1);
-
+      printf ("%s: exit(%d)\n", thread_current ()->name, -1);
       thread_exit ();
 
     case SEL_KCSEG:

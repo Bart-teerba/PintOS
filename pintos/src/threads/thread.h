@@ -128,7 +128,7 @@ struct thread
                                          False = load unsuccessfully. */
     struct semaphore child_load_sema;          /* Semaphore to make sure child has finished loading */
 
-    /* used by task3. */
+    /* used by proj2 task3. */
     struct file* cur_file;
     struct list fd_list;
     int next_fd;
