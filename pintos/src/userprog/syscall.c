@@ -90,7 +90,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (args[0] == SYS_EXEC) {
     validate_addr(&args[1], f, 1, 4);
-    validate_addr(args[1], f, 1, 1);
+    validate_str(args[1], f);
 
     f->eax = process_execute(args[1]);
     //printf("Execute: %d\n", args[1]);
@@ -130,7 +130,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (args[0] == SYS_READ) {
     validate_addr(&args[1],f, 3, 4);
-    validate_addr(args[2], f, args[3], 1);
+    validate_buff(args[2], f, args[3]);
 
     int fd = args[1];
     void * buff = args[2];
@@ -139,7 +139,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (args[0] == SYS_WRITE) {
     validate_addr(&args[1],f, 3, 4);
-    validate_addr(args[2], f, args[3], 1);
+    validate_buff(args[2], f, args[3]);
 
     int fd = args[1];
     void * buff = args[2];
