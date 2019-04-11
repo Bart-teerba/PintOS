@@ -16,13 +16,6 @@ void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
 
-/* Add struct. */
-struct fd_file_map {
-    int fd;
-    struct file * file;
-    struct list_elem elem;
-};
-
 /* Add global variable. */
 struct lock filesys_lock;
 
@@ -203,7 +196,7 @@ void remove_file(int fd)
   struct thread *cur_thread = thread_current();
   struct list_elem *e;
   struct fd_file_map *cur_map;
-
+  struct fd_file_map *to_free;
   for (e = list_begin (&cur_thread->fd_list); e != list_end (&cur_thread->fd_list);
        e = list_next (e))
     {
@@ -212,6 +205,7 @@ void remove_file(int fd)
         list_remove (&cur_map->elem);
       }
     }
+  free(to_free);
 }
 
 /* get the mapping struct according to fd from current thread's fd_list */
