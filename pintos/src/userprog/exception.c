@@ -93,6 +93,9 @@ kill (struct intr_frame *f)
 
       t = thread_current ();
       sema_up(&(t->wait_status)->dead);
+      (t->wait_status)->exit_code = -1;
+      f->eax = -1;
+
       thread_exit ();
 
     case SEL_KCSEG:
@@ -111,6 +114,9 @@ kill (struct intr_frame *f)
 
       t = thread_current ();
       sema_up(&(t->wait_status)->dead);
+      (t->wait_status)->exit_code = -1;
+      f->eax = -1;
+
       thread_exit ();
     }
 }
