@@ -49,11 +49,18 @@ void validate_addr (void *ptr, struct intr_frame *f, int num, int size) {
   }
 }
 
+void validate_buff (void *ptr, struct intr_frame *f, int size) {
+  int i;
+  for (i = 0; i < size; i++) {
+    validate_addr(ptr + i, f, 1, 1);
+  }
+}
+
 void validate_str (void *ptr_, struct intr_frame *f) {
   char *ptr = ptr;
   int i;
   for (i = 0; i <= strlen(ptr); i++) {
-    validate_addr(ptr, f, 1, 1);
+    validate_addr(ptr + i, f, 1, 1);
   }
 }
 
