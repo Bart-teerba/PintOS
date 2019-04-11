@@ -469,9 +469,6 @@ init_thread (struct thread *t, const char *name, int priority)
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
 
-  t->wait_status = &t->wait_status_entry;
-  // t->wait_status = (struct wait_status *) malloc(sizeof(struct wait_status));
-  wait_status_init(t->wait_status, t->tid);
   list_init(&t->children);
   sema_init(&t->child_load_sema, 0);
   list_init (&t->fd_list);

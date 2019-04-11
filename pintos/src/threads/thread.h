@@ -116,7 +116,6 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
-    struct wait_status wait_status_entry;
     struct wait_status *wait_status;    /* This process’s wait state. */
     struct list children;               /* A list of wait status of children. */
     bool load_success;                  /* True = load successfully,

@@ -83,6 +83,9 @@ start_process (void *args_)
   struct intr_frame if_;
   bool success;
 
+  t->wait_status = (struct wait_status *) malloc(sizeof(struct wait_status));
+  wait_status_init(t->wait_status, t->tid);
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -124,7 +127,7 @@ void wait_status_helper(struct wait_status *ws) {
   if (ws->ref_cnt == 0) {
     lock_release(&ws->lock);
     list_remove(&ws->elem);
-    // free(ws);
+    free(ws);
   } else {
     lock_release(&ws->lock);
   }
@@ -147,13 +150,13 @@ process_wait (tid_t child_tid UNUSED)
   struct list_elem *e;
   int find_waited_thread = 0;
   struct wait_status *ws;
-  // for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e)) {
-  //   ws = list_entry (e, struct wait_status, elem);
-  //   if (ws->tid == child_tid) {
-  //     find_waited_thread = 1;
-  //     break;
-  //   }
-  // }
+  for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e)) {
+    ws = list_entry (e, struct wait_status, elem);
+    if (ws->tid == child_tid) {
+      find_waited_thread = 1;
+      break;
+    }
+  }
 
   if (!find_waited_thread) {
     return -1;
@@ -176,10 +179,10 @@ process_exit (void)
   wait_status_helper(cur_ws);
 
   struct list_elem *e;
-  // for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e)) {
-  //   struct wait_status *t_ws = list_entry (e, struct wait_status, elem);
-  //   wait_status_helper(t_ws);
-  // }
+  for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e)) {
+    struct wait_status *t_ws = list_entry (e, struct wait_status, elem);
+    wait_status_helper(t_ws);
+  }
 
 
 
