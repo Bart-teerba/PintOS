@@ -16,6 +16,13 @@ void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
 
+/* Add struct. */
+struct fd_file_map {
+    int fd;
+    struct file * file;
+    struct list_elem elem;
+};
+
 /* Add global variable. */
 struct lock filesys_lock;
 
@@ -42,11 +49,18 @@ void validate_addr (void *ptr, struct intr_frame *f, int num, int size) {
   }
 }
 
+void validate_buff (void *ptr, struct intr_frame *f, int size) {
+  int i;
+  for (i = 0; i < size; i++) {
+    validate_addr(ptr + i, f, 1, 1);
+  }
+}
+
 void validate_str (void *ptr_, struct intr_frame *f) {
   char *ptr = ptr;
   int i;
   for (i = 0; i <= strlen(ptr); i++) {
-    validate_addr(ptr, f, 1, 1);
+    validate_addr(ptr + i, f, 1, 1);
   }
 }
 
@@ -55,7 +69,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 {
   uint32_t* args = ((uint32_t*) f->esp);
   validate_addr(&args[0], f, 1, 4);
-  printf("args[0]: %p\n", args[0]);
+  // printf("args[0]: %p\n", args[0]);
 
 
   //printf("System call number: %d\n", args[0]);
@@ -116,18 +130,20 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (args[0] == SYS_READ) {
     validate_addr(&args[1],f, 3, 4);
+    validate_buff(args[2], f, args[3]);
+
     int fd = args[1];
     void * buff = args[2];
     size_t size = args[3];
-    validate_addr(buff, f, 1, size);
     f->eax = read(fd, buff, size);
 
   } else if (args[0] == SYS_WRITE) {
     validate_addr(&args[1],f, 3, 4);
+    validate_buff(args[2], f, args[3]);
+
     int fd = args[1];
     void * buff = args[2];
     size_t size = args[3];
-    validate_addr(buff, f, 1, size);
     f->eax = write(fd, buff, size);
 
   } else if (args[0] == SYS_SEEK) {
@@ -182,17 +198,15 @@ void remove_file(int fd)
   struct thread *cur_thread = thread_current();
   struct list_elem *e;
   struct fd_file_map *cur_map;
-  struct fd_file_map *to_free;
+
   for (e = list_begin (&cur_thread->fd_list); e != list_end (&cur_thread->fd_list);
        e = list_next (e))
     {
       struct fd_file_map* cur_map = list_entry (e, struct fd_file_map, elem);
       if (cur_map->fd == fd) {
         list_remove (&cur_map->elem);
-        to_free = cur_map;
       }
     }
-  free(to_free);
 }
 
 /* get the mapping struct according to fd from current thread's fd_list */
