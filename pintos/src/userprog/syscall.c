@@ -37,9 +37,7 @@ syscall_exit (int status, struct intr_frame *f) {
 
 void validate_addr (void *ptr, struct intr_frame *f, int num, int size) {
   //printf("%p\n", ptr);
-  if (!is_user_vaddr(ptr) || !is_user_vaddr(ptr + size * num - 1) \
-      || pagedir_get_page(thread_current()->pagedir, ptr) == NULL) \
-      || pagedir_get_page(thread_current()->pagedir, ptr + size * num - 1) == NULL) {
+  if (!is_user_vaddr(ptr) || !is_user_vaddr(ptr + size * num - 1) || pagedir_get_page(thread_current()->pagedir, ptr) == NULL || pagedir_get_page(thread_current()->pagedir, ptr + size * num - 1) == NULL) {
     syscall_exit(-1,f);
   }
 }
