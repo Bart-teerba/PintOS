@@ -16,13 +16,6 @@ void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
 
-/* Add struct. */
-struct fd_file_map {
-    int fd;
-    struct file * file;
-    struct list_elem elem;
-};
-
 /* Add global variable. */
 struct lock filesys_lock;
 
@@ -114,20 +107,18 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (args[0] == SYS_READ) {
     validate_addr(&args[1],f, 3, 4);
-    validate_addr(args[2], f, args[3], 1);
-
     int fd = args[1];
     void * buff = args[2];
     size_t size = args[3];
+    validate_addr(buff, f, 1, size);
     f->eax = read(fd, buff, size);
 
   } else if (args[0] == SYS_WRITE) {
     validate_addr(&args[1],f, 3, 4);
-    validate_addr(args[2], f, args[3], 1);
-
     int fd = args[1];
     void * buff = args[2];
     size_t size = args[3];
+    validate_addr(buff, f, 1, size);
     f->eax = write(fd, buff, size);
 
   } else if (args[0] == SYS_SEEK) {
@@ -182,15 +173,17 @@ void remove_file(int fd)
   struct thread *cur_thread = thread_current();
   struct list_elem *e;
   struct fd_file_map *cur_map;
-
+  struct fd_file_map *to_free;
   for (e = list_begin (&cur_thread->fd_list); e != list_end (&cur_thread->fd_list);
        e = list_next (e))
     {
       struct fd_file_map* cur_map = list_entry (e, struct fd_file_map, elem);
       if (cur_map->fd == fd) {
         list_remove (&cur_map->elem);
+        to_free = cur_map;
       }
     }
+  free(to_free);
 }
 
 /* get the mapping struct according to fd from current thread's fd_list */

@@ -95,6 +95,12 @@ struct wait_status {
                                           1 = child dead. */
 };
 
+struct fd_file_map {
+    int fd;
+    struct file * file;
+    struct list_elem elem;
+};
+
 struct thread
   {
     /* Owned by thread.c. */

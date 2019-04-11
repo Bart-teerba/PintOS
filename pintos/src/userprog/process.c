@@ -194,22 +194,31 @@ process_exit (void)
      to the kernel-only page directory. */
   pd = cur->pagedir;
   if (pd != NULL)
-    {
-      /* Correct ordering here is crucial.  We must set
-         cur->pagedir to NULL before switching page directories,
-         so that a timer interrupt can't switch back to the
-         process page directory.  We must activate the base page
-         directory before destroying the process's page
-         directory, or our active page directory will be one
-         that's been freed (and cleared). */
-      cur->pagedir = NULL;
-      pagedir_activate (NULL);
-      pagedir_destroy (pd);
-    }
+  {
+    /* Correct ordering here is crucial.  We must set
+       cur->pagedir to NULL before switching page directories,
+       so that a timer interrupt can't switch back to the
+       process page directory.  We must activate the base page
+       directory before destroying the process's page
+       directory, or our active page directory will be one
+       that's been freed (and cleared). */
+    cur->pagedir = NULL;
+    pagedir_activate (NULL);
+    pagedir_destroy (pd);
+  }
+  struct fd_file_map* cur_map;
+  while (!list_empty (&cur->fd_list))
+  {
+    e = list_pop_front (&cur->fd_list);
+    cur_map = list_entry (e, struct fd_file_map, elem);
+    free(cur_map);
+  }
+
   if (cur->cur_file != NULL) {
     file_allow_write(cur->cur_file);
     file_close (cur->cur_file);
   }
+
   sema_up (&cur_ws->dead);
 }
 
