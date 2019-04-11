@@ -49,11 +49,17 @@ void validate_addr (void *ptr, struct intr_frame *f, int num, int size) {
   }
 }
 
+void validate_str (void *ptr_, struct intr_frame *f) {
+  char *ptr = ptr;
+  validate_addr(ptr, f, strlen(ptr) + 1, 1);
+}
+
 static void
 syscall_handler (struct intr_frame *f UNUSED)
 {
   uint32_t* args = ((uint32_t*) f->esp);
   validate_addr(&args[0], f, 1, 4);
+  printf("args[0]: %p\n", args[0]);
 
 
   //printf("System call number: %d\n", args[0]);
@@ -73,8 +79,8 @@ syscall_handler (struct intr_frame *f UNUSED)
     //printf("Practice: %d + 1 = %d\n", args[1], args[1] + 1);
 
   } else if (args[0] == SYS_EXEC) {
-    validate_addr(&args[1],f, 1, 4);
-    validate_addr(args[1],f, 1, 4);
+    validate_addr(&args[1], f, 1, 4);
+    validate_addr(args[1], f, 1, 1);
 
     f->eax = process_execute(args[1]);
     //printf("Execute: %d\n", args[1]);
