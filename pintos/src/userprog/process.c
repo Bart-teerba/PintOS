@@ -87,9 +87,9 @@ start_process (void *args_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
-  if (t->cur_file != NULL) {
-    file_deny_write(t->cur_file);
-  }
+  // if (t->cur_file != NULL) {
+  //   file_deny_write(t->cur_file);
+  // }
   /* set load status */
   parent->load_success = success;
   if (success) {
@@ -196,9 +196,9 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  if (cur->cur_file != NULL) {
-    file_allow_write(cur->cur_file);
-  }
+  // if (cur->cur_file != NULL) {
+  //   file_allow_write(cur->cur_file);
+  // }
   sema_up (&cur_ws->dead);
 }
 
