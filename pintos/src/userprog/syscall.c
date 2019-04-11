@@ -90,7 +90,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (args[0] == SYS_EXEC) {
     validate_addr(&args[1], f, 1, 4);
-    validate_addr(args[1], f);
+    validate_addr(args[1], f, 1, 1);
 
     f->eax = process_execute(args[1]);
     //printf("Execute: %d\n", args[1]);
