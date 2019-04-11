@@ -44,7 +44,9 @@ syscall_exit (int status, struct intr_frame *f) {
 
 void validate_addr (void *ptr, struct intr_frame *f, int num, int size) {
   //printf("%p\n", ptr);
-  if (!is_user_vaddr(ptr) || !is_user_vaddr(ptr + size * num - 1) || pagedir_get_page(thread_current()->pagedir, ptr) == NULL) {
+  if (!is_user_vaddr(ptr) || !is_user_vaddr(ptr + size * num - 1) \
+      || pagedir_get_page(thread_current()->pagedir, ptr) == NULL) \
+      || pagedir_get_page(thread_current()->pagedir, ptr + size * num - 1) == NULL) {
     syscall_exit(-1,f);
   }
 }
@@ -55,26 +57,26 @@ void validate_buff (void *ptr, struct intr_frame *f, int size) {
     validate_addr(ptr + i, f, 1, 1);
   }
 }
-
-void validate_str (void *ptr_, struct intr_frame *f) {
-  char *ptr = ptr;
-  int i;
-  for (i = 0; i <= strlen(ptr); i++) {
-    validate_addr(ptr + i, f, 1, 1);
-  }
-}
+//
+// void validate_str (void *ptr_, struct intr_frame *f) {
+//   char *ptr = ptr;
+//   int i;
+//   for (i = 0; i <= strlen(ptr); i++) {
+//     validate_addr(ptr + i, f, 1, 1);
+//   }
+// }
 
 static void
 syscall_handler (struct intr_frame *f UNUSED)
 {
   uint32_t* args = ((uint32_t*) f->esp);
-  validate_addr(&args[0], f, 1, 4);
+  validate_addr(&args[0], f, 1, sizeof(uint32_t * ));
   // printf("args[0]: %p\n", args[0]);
 
 
   //printf("System call number: %d\n", args[0]);
   if (args[0] == SYS_EXIT) {
-    validate_addr(&args[1], f, 1, 4);
+    validate_addr(&args[1], f, 1, sizeof(uint32_t * ));
 
     syscall_exit(args[1], f);
 
@@ -83,54 +85,57 @@ syscall_handler (struct intr_frame *f UNUSED)
     shutdown_power_off();
 
   } else if (args[0] == SYS_PRACTICE) {
-    validate_addr(&args[1], f, 1, 4);
+    validate_addr(&args[1], f, 1, sizeof(uint32_t * ));
 
     f->eax = args[1] + 1;
     //printf("Practice: %d + 1 = %d\n", args[1], args[1] + 1);
 
   } else if (args[0] == SYS_EXEC) {
-    validate_addr(&args[1], f, 1, 4);
+    validate_addr(&args[1], f, 1, sizeof(uint32_t * ));
     validate_addr(args[1], f, 1, 1);
 
     f->eax = process_execute(args[1]);
     //printf("Execute: %d\n", args[1]);
 
   } else if (args[0] == SYS_WAIT) {
-    validate_addr(&args[1],f, 1, 4);
+    validate_addr(&args[1],f, 1, sizeof(uint32_t * ));
 
     f->eax = process_wait(args[1]);
     //printf("Wait status: %d\n", args[1]);
 
   } else if (args[0] == SYS_CREATE) {
-    validate_addr(&args[1],f,2, 4);
-    validate_addr(args[1],f,0, 4);
+    validate_addr(&args[1],f,2, sizeof(uint32_t * ));
+    validate_addr((char *) args[1],f, args[2], sizeof(char));
 
     char *file = args[1];
     unsigned initial_size = args[2];
     f->eax = create(file, initial_size);
+    if (f->eax == -1) {
+      syscall_exit(-1,f);
+    }
 
   } else if (args[0] == SYS_REMOVE) {
-    validate_addr(&args[1],f, 1, 4);
+    validate_addr(&args[1],f, 1, sizeof(uint32_t * ));
 
     char *file = args[1];
     f->eax = remove(file);
 
   } else if (args[0] == SYS_OPEN) {
-    validate_addr(&args[1],f, 1, 4);
-    validate_addr(args[1],f,0, 4);
+    validate_addr(&args[1],f, 1, sizeof(uint32_t * ));
+    validate_addr(args[1],f,0, sizeof(uint32_t * ));
 
     char *file = args[1];
     f->eax = open(file);
 
   } else if (args[0] == SYS_FILESIZE) {
-    validate_addr(&args[1],f, 1, 4);
+    validate_addr(&args[1],f, 1, sizeof(uint32_t * ));
 
     int fd = args[1];
     f->eax = filesize(fd);
 
   } else if (args[0] == SYS_READ) {
-    validate_addr(&args[1],f, 3, 4);
-    validate_buff(args[2], f, args[3]);
+    validate_addr(&args[1],f, 3, sizeof(uint32_t * ));
+    validate_buff((void *) args[2], f, args[3]);
 
     int fd = args[1];
     void * buff = args[2];
@@ -138,8 +143,8 @@ syscall_handler (struct intr_frame *f UNUSED)
     f->eax = read(fd, buff, size);
 
   } else if (args[0] == SYS_WRITE) {
-    validate_addr(&args[1],f, 3, 4);
-    validate_buff(args[2], f, args[3]);
+    validate_addr(&args[1],f, 3, sizeof(uint32_t * ));
+    validate_buff((void *) args[2], f, args[3]);
 
     int fd = args[1];
     void * buff = args[2];
@@ -147,20 +152,20 @@ syscall_handler (struct intr_frame *f UNUSED)
     f->eax = write(fd, buff, size);
 
   } else if (args[0] == SYS_SEEK) {
-    validate_addr(&args[1],f, 2, 4);
+    validate_addr(&args[1],f, 2, sizeof(uint32_t * ));
 
     int fd = args[1];
     unsigned position = args[2];
     seek(fd, position);
 
   } else if (args[0] == SYS_TELL) {
-    validate_addr(&args[1],f, 1, 4);
+    validate_addr(&args[1],f, 1, sizeof(uint32_t * ));
 
     int fd = args[1];
     f->eax = tell(fd);
 
   } else if (args[0] == SYS_CLOSE) {
-    validate_addr(&args[1],f, 1, 4);
+    validate_addr(&args[1],f, 1, sizeof(uint32_t * ));
 
     int fd = args[1];
     close(fd);
