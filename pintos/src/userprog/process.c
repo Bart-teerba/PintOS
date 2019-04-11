@@ -55,6 +55,9 @@ process_execute (const char *file_name)
 
   char *save_ptr;
 
+  if (file_name == NULL) {
+    return -1;
+  }
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, &args);
@@ -161,6 +164,7 @@ process_wait (tid_t child_tid UNUSED)
   if (!find_waited_thread) {
     return -1;
   }
+
 
   sema_down(&ws->dead);
   int exit_code = ws->exit_code;

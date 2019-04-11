@@ -17,10 +17,10 @@ unsigned tell (int fd);
 void close (int fd);
 
 /* Add struct. */
-struct fd_file_map { 
-    int fd;  
-    struct file * file; 
-    struct list_elem elem;   
+struct fd_file_map {
+    int fd;
+    struct file * file;
+    struct list_elem elem;
 };
 
 /* Add global variable. */
@@ -59,7 +59,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   //printf("System call number: %d\n", args[0]);
   if (args[0] == SYS_EXIT) {
-    f->eax = args[1];
+    f->eax = process_exit();
+    (thread_current ()->wait_status)->exit_code = args[1];
     printf("%s: exit(%d)\n", &thread_current ()->name, args[1]);
     thread_exit();
     //syscall_exit(args[1]);
@@ -70,7 +71,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     f->eax = args[1] + 1;
     //printf("Practice: %d + 1 = %d\n", args[1], args[1] + 1);
   } else if (args[0] == SYS_EXEC) {
-    f->eax = args[1];
+    f->eax = process_execute(args[1]);
     //printf("Execute: %d\n", args[1]);
   } else if (args[0] == SYS_WAIT) {
     f->eax = process_wait(args[1]);
@@ -114,7 +115,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 /* Some helper functions. */
 
-int add_file(struct file* file) 
+int add_file(struct file* file)
 {
   struct thread *cur_thread = thread_current();
   int assigned = -1;
@@ -135,9 +136,9 @@ int add_file(struct file* file)
   list_push_back(&cur_thread->fd_list, &new_fd_map->elem);
   return assigned;
 }
-    
+
 /* remove the mapping struct according to fd in current thread's fd_list. */
-void remove_file(int fd) 
+void remove_file(int fd)
 {
   struct thread *cur_thread = thread_current();
   struct list_elem *e;
@@ -154,7 +155,7 @@ void remove_file(int fd)
 }
 
 /* get the mapping struct according to fd from current thread's fd_list */
-struct file* get_file(int fd) 
+struct file* get_file(int fd)
 {
   struct thread *cur_thread = thread_current();
   struct list_elem *e;
@@ -169,7 +170,7 @@ struct file* get_file(int fd)
       }
     }
   return NULL;
-} 
+}
 
 
 bool create (const char *file, unsigned initial_size)
@@ -191,7 +192,7 @@ int open (const char *file) {
   lock_acquire(&filesys_lock);
   struct file *opened = filesys_open(file);
   int fd;
-  if (opened == NULL) 
+  if (opened == NULL)
   {
     fd = -1;
   }
@@ -206,7 +207,7 @@ int open (const char *file) {
 int filesize (int fd) {
   lock_acquire(&filesys_lock);
   struct file* aim = get_file(fd);
-  int size; 
+  int size;
   if (aim == NULL) {
     size =  -1;
   }
@@ -261,7 +262,7 @@ int write (int fd, const void *buffer, unsigned size)
     }
     else {
       num_bytes_written = file_write(aim, buffer, size);
-    }    
+    }
   }
   lock_release(&filesys_lock);
   return num_bytes_written;
