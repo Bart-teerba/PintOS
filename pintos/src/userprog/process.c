@@ -53,6 +53,9 @@ process_execute (const char *file_name)
   args.file_name = fn_copy;
   args.parent = t;
 
+  char *save_ptr;
+
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, &args);
   if (tid == TID_ERROR)
@@ -319,6 +322,8 @@ load (const char *file_name_ori, void (**eip) (void), void **esp)
     argv[argc] = token;
     argc++;
   }
+
+  strlcpy (t->name, argv[0], sizeof t->name);
 
   /* contains a zero at the end */
   char *addresses[argc + 1];
