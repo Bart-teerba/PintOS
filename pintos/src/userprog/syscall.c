@@ -69,7 +69,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 {
   uint32_t* args = ((uint32_t*) f->esp);
   validate_addr(&args[0], f, 1, 4);
-  printf("args[0]: %p\n", args[0]);
+  // printf("args[0]: %p\n", args[0]);
 
 
   //printf("System call number: %d\n", args[0]);
@@ -90,7 +90,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (args[0] == SYS_EXEC) {
     validate_addr(&args[1], f, 1, 4);
-    validate_str(args[1], f);
+    validate_addr(args[1], f);
 
     f->eax = process_execute(args[1]);
     //printf("Execute: %d\n", args[1]);
