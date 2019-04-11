@@ -86,6 +86,8 @@ start_process (void *args_)
   struct intr_frame if_;
   bool success;
 
+  t->wait_status = (struct wait_status *) malloc(sizeof(struct wait_status));
+  wait_status_init(t->wait_status, t->tid);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
