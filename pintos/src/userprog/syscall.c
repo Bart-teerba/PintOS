@@ -43,7 +43,6 @@ syscall_exit (int status, struct intr_frame *f)
 void 
 validate_addr (void *ptr, struct intr_frame *f, int num, int size) 
 {
-  //printf("%p\n", ptr);
   if (!is_user_vaddr (ptr) || !is_user_vaddr (ptr + size * num - 1) 
     || pagedir_get_page (thread_current ()->pagedir, ptr) == NULL 
     || pagedir_get_page (thread_current ()->pagedir, ptr + size * num - 1) == NULL) 
@@ -209,10 +208,8 @@ remove_file(int fd)
       if (cur_map->fd == fd) 
         {
           list_remove (&cur_map->elem);
-          to_free = cur_map;
         }
     }
-  free (to_free);
 }
 
 /* get the mapping struct according to fd from 
@@ -264,7 +261,7 @@ open (const char *file)
 {
   if (file == NULL) 
     {
-      return 0;
+      return -1;
     }
   lock_acquire (&filesys_lock);
   struct file *opened = filesys_open (file);
