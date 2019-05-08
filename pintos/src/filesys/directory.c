@@ -49,6 +49,25 @@ dir_open (struct inode *inode)
     }
 }
 
+
+bool dir_is_empty(struct inode *inode)
+{
+  struct dir * dir = dir_open(inode);
+  struct dir_entry e;
+  off_t ofs;
+  bool if_empty = true;
+
+  for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e; ofs += sizeof e)
+  {
+    if (e.in_use){
+      if_empty = false;
+      break;
+    }
+  }
+  dir_close(dir);
+  return if_empty;
+}
+
 /* Opens the root directory and returns a directory for it.
    Return true if successful, false on failure. */
 struct dir *
@@ -218,6 +237,13 @@ dir_remove (struct dir *dir, const char *name)
   inode = inode_open (e.inode_sector);
   if (inode == NULL)
     goto done;
+
+
+  if (inode_isdir (inode)) {
+    if (inode->open_cnt > 1 || inode->sector == ROOT_DIR_SECTOR || !dir_is_empty(inode)) {
+      goto done;
+    }
+  }
 
   /* Erase directory entry. */
   e.in_use = false;
