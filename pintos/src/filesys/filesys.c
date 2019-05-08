@@ -71,9 +71,9 @@ validate_path (char *path, struct inode **inode_ptr, char **file_name)
 
     *inode_ptr = cur_inode;
     *file_name = token;
-    if (token == NULL) {
-      return false;
-    }
+    // if (token == NULL) {
+    //   return false;
+    // }
     return true;
 }
 
@@ -136,7 +136,7 @@ filesys_create_helper (const char *name, off_t initial_size, bool if_dir) {
     // printf("%d, %d, %d, %d, %d\n", suc1, suc2, suc3, suc4, success);
     if (!success && inode_sector != 0) {
       free_map_release (inode_sector, 1);
-    } else {
+    } else if (success) {
       struct inode_disk buffer;
       block_read(fs_device, inode_sector, &buffer);
       buffer.num_entries = 0;
