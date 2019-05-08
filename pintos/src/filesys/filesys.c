@@ -18,7 +18,6 @@ filesys_open_helper (struct inode *inode_dir, char *name)
    {
      struct dir *dir = dir_open(inode_dir);
      struct inode *inode = NULL;
-
      if (dir != NULL) {
        dir_lookup (dir, name, &inode);
      }
@@ -33,9 +32,8 @@ validate_path (char *path, struct inode **inode_ptr, char **file_name)
   struct thread *t = thread_current ();
   struct inode *cur_inode;
   struct inode *next_inode;
-
   if (strlen(path) > 0) {
-    if (path[0] == "/") {
+    if (path[0] == '/') {
       cur_inode = inode_open(ROOT_DIR_SECTOR);
     } else {
       cur_inode = inode_reopen(t->cur_dir_inode);
@@ -49,6 +47,7 @@ validate_path (char *path, struct inode **inode_ptr, char **file_name)
    (token = strtok_r (path, "/", &save_ptr); token != NULL;
        token = strtok_r (NULL, "/", &save_ptr))
     {
+      // printf("%s\n", token);
       if (*save_ptr == '\0') {
         break;
       }
@@ -119,8 +118,10 @@ filesys_create_helper (const char *name, off_t initial_size, bool if_dir) {
 
     struct inode *inode;
     char *file_name;
+    // printf("%s\n", path);
     bool validity = validate_path (path, &inode, &file_name);
-    if (validity == 0) {
+
+    if (validity == false) {
       return false;
     }
 
