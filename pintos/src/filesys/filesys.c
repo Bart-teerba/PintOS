@@ -6,11 +6,24 @@
 #include "filesys/free-map.h"
 #include "filesys/inode.h"
 #include "filesys/directory.h"
+#include "threads/thread.h"
 
 /* Partition that contains the file system. */
 struct block *fs_device;
 
 static void do_format (void);
+
+struct inode *
+filesys_open_helper (struct inode *inode_dir, char *name)
+   {
+     struct dir *dir = dir_open(inode_dir);
+     struct inode *inode = NULL;
+
+     if (dir != NULL)
+       dir_lookup (dir, name, &inode);
+     dir_close (dir);
+     return inode;
+   }
 
 bool
 validate_path (char *path, struct inode **inode_ptr, char **file_name)
@@ -38,7 +51,7 @@ validate_path (char *path, struct inode **inode_ptr, char **file_name)
       if (strcmp(token, ".") == 0) {
         continue;
       } else if (strcmp(token, "..") == 0) {
-        next_inode = inode_open(cur_inode->data.parent);
+        next_inode = inode_open((cur_inode->data).parent);
         inode_close(cur_inode);
         cur_inode = next_inode;
       } else {
@@ -98,7 +111,7 @@ filesys_create (const char *name, off_t initial_size)
 
   struct inode *inode;
   char *file_name;
-  validity = validate_path (path, &inode, &file_name);
+  bool validity = validate_path (path, &inode, &file_name);
   if (validity == 0) {
     return 0;
   }
@@ -123,17 +136,7 @@ filesys_create (const char *name, off_t initial_size)
    Fails if no file named NAME exists,
    or if an internal memory allocation fails. */
 
-struct inode *
-filesys_open_helper (struct inode *inode_dir, const char *name)
-   {
-     struct dir *dir = dir_open(inode_dir);
-     struct inode *inode = NULL;
 
-     if (dir != NULL)
-       dir_lookup (dir, name, &inode);
-     dir_close (dir);
-     return inode
-   }
 
 struct file *
 filesys_open (const char *name)
@@ -144,12 +147,10 @@ filesys_open (const char *name)
 
   struct inode *inode;
   char *file_name;
-  validity = validate_path (path, &inode, &file_name);
+  bool validity = validate_path (path, &inode, &file_name);
   if (validity == 0) {
     return 0;
   }
-
-  block_sector_t inode_sector = 0;
 
   return file_open (filesys_open_helper (inode, file_name));
 }
@@ -167,12 +168,11 @@ filesys_remove (const char *name)
 
   struct inode *inode;
   char *file_name;
-  validity = validate_path (path, &inode, &file_name);
+  bool validity = validate_path (path, &inode, &file_name);
   if (validity == 0) {
     return 0;
   }
 
-  block_sector_t inode_sector = 0;
   struct dir *dir = dir_open(inode);
 
   bool success = dir != NULL && dir_remove (dir, file_name);
