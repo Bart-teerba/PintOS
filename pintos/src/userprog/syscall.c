@@ -24,6 +24,7 @@ unsigned tell (int fd);
 void close (int fd);
 bool mkdir (char *dir_name);
 bool chdir (char *dir_name);
+bool file_is_not_dir (struct file *file);
 
 
 struct file* get_file(int fd);
@@ -383,7 +384,7 @@ read (int fd, void *buffer, unsigned size)
   else
     {
       struct file * aim = get_file (fd);
-      if (aim == NULL)
+      if (aim == NULL || !file_is_not_dir(aim))
         {
           num_bytes_read = - 1;
         }
@@ -409,7 +410,7 @@ write (int fd, const void *buffer, unsigned size)
   else
     {
       struct file * aim = get_file (fd);
-      if (aim == NULL)
+      if (aim == NULL || !file_is_not_dir(aim))
         {
           num_bytes_written = - 1;
         }
@@ -464,3 +465,8 @@ close (int fd)
     }
   lock_release (&filesys_lock);
 };
+
+bool
+file_is_not_dir (struct file *file) {
+  return !inode_isdir(file_get_inode(file));
+}
