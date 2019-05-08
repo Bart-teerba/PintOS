@@ -26,6 +26,7 @@ filesys_open_helper (struct inode *inode_dir, char *name)
      return inode;
    }
 
+
 bool
 validate_path (char *path, struct inode **inode_ptr, char **file_name)
 {
@@ -112,7 +113,6 @@ filesys_done (void)
 static bool
 filesys_create_helper (const char *name, off_t initial_size, bool if_dir) {
 
-
     char path_temp[strlen(name) + 1];
     char *path = &path_temp[0];
     strlcpy (path, name, strlen(name) + 1);
@@ -126,11 +126,13 @@ filesys_create_helper (const char *name, off_t initial_size, bool if_dir) {
 
     block_sector_t inode_sector = 0;
     struct dir *dir = dir_open(inode);
+    bool suc1 = dir != NULL;
+    bool suc2 = free_map_allocate (1, &inode_sector);
+    bool suc3 = inode_create (inode_sector, initial_size);
+    bool suc4 = dir_add (dir, file_name, inode_sector);
+    bool success = suc1 && suc2 && suc3 && suc4;
 
-    bool success = (dir != NULL
-                    && free_map_allocate (1, &inode_sector)
-                    && inode_create (inode_sector, initial_size)
-                    && dir_add (dir, file_name, inode_sector));
+    // printf("%d, %d, %d, %d, %d\n", suc1, suc2, suc3, suc4, success);
     if (!success && inode_sector != 0) {
       free_map_release (inode_sector, 1);
     } else {
@@ -141,7 +143,6 @@ filesys_create_helper (const char *name, off_t initial_size, bool if_dir) {
       block_write(fs_device, inode_sector, &buffer);
     }
     dir_close (dir);
-
     return success;
 }
 

@@ -22,6 +22,10 @@ int write (int fd, const void *buffer, unsigned size);
 void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
+bool mkdir (char *dir_name);
+bool chdir (char *dir_name);
+
+
 struct file* get_file(int fd);
 
 /* Add global lock. */
@@ -168,13 +172,13 @@ syscall_handler (struct intr_frame *f UNUSED)
     {
       validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
       char *dir_name = (char *) args[1];
-      f->eax = filesys_chdir (dir_name);
+      f->eax = chdir(dir_name);
     }
   else if (args[0] == SYS_MKDIR)
     {
       validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
       char *dir_name = (char *) args[1];
-      f->eax = filesys_mkdir (dir_name, 0);
+      f->eax = mkdir (dir_name);
     }
   else if (args[0] == SYS_READDIR)
     {
@@ -275,6 +279,28 @@ get_file(int fd)
   return NULL;
 }
 
+bool
+chdir (char *dir_name)
+{
+  lock_acquire (&filesys_lock);
+  bool success = filesys_chdir (dir_name);
+  lock_release (&filesys_lock);
+  return success;
+}
+
+bool
+mkdir (char *dir_name)
+{
+  if (dir_name == NULL)
+    {
+      return 0;
+    }
+  lock_acquire (&filesys_lock);
+  // not sure if 100
+  bool success = filesys_mkdir (dir_name, 100);
+  lock_release (&filesys_lock);
+  return success;
+}
 
 bool
 create (const char *file, unsigned initial_size)
