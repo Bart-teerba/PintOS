@@ -32,7 +32,7 @@ syscall_init (void)
 }
 
 void
-syscall_exit (int status, struct intr_frame *f) 
+syscall_exit (int status, struct intr_frame *f)
 {
   (thread_current ()->wait_status)->exit_code = status;
   printf ("%s: exit(%d)\n", &thread_current ()->name, status);
@@ -40,21 +40,21 @@ syscall_exit (int status, struct intr_frame *f)
   thread_exit ();
 }
 
-void 
-validate_addr (void *ptr, struct intr_frame *f, int num, int size) 
+void
+validate_addr (void *ptr, struct intr_frame *f, int num, int size)
 {
-  if (!is_user_vaddr (ptr) || !is_user_vaddr (ptr + size * num - 1) 
-    || pagedir_get_page (thread_current ()->pagedir, ptr) == NULL 
-    || pagedir_get_page (thread_current ()->pagedir, ptr + size * num - 1) == NULL) 
+  if (!is_user_vaddr (ptr) || !is_user_vaddr (ptr + size * num - 1)
+    || pagedir_get_page (thread_current ()->pagedir, ptr) == NULL
+    || pagedir_get_page (thread_current ()->pagedir, ptr + size * num - 1) == NULL)
     {
       syscall_exit (-1, f);
     }
 }
 
-void 
+void
 validate_buff (void *ptr, struct intr_frame *f, int size) {
   int i;
-  for ( i = 0; i < size; i++) 
+  for ( i = 0; i < size; i++)
     {
       validate_addr (ptr + i, f, 1, 1);
     }
@@ -66,32 +66,32 @@ syscall_handler (struct intr_frame *f UNUSED)
   uint32_t* args = ((uint32_t*) f->esp);
   validate_addr (&args[0], f, 1, sizeof (uint32_t *));
 
-  if (args[0] == SYS_EXIT) 
+  if (args[0] == SYS_EXIT)
     {
       validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
       syscall_exit (args[1], f);
-    } 
-  else if (args[0] == SYS_HALT) 
+    }
+  else if (args[0] == SYS_HALT)
     {
       shutdown_power_off ();
-    } 
-  else if (args[0] == SYS_PRACTICE) 
+    }
+  else if (args[0] == SYS_PRACTICE)
     {
       validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
       f->eax = args[1] + 1;
-    } 
-  else if (args[0] == SYS_EXEC) 
+    }
+  else if (args[0] == SYS_EXEC)
     {
       validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
       validate_addr ((void *) args[1], f, 1, 1);
       f->eax = process_execute ((void *) args[1]);
-    } 
-  else if (args[0] == SYS_WAIT) 
+    }
+  else if (args[0] == SYS_WAIT)
     {
       validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
       f->eax = process_wait (args[1]);
-    } 
-  else if (args[0] == SYS_CREATE) 
+    }
+  else if (args[0] == SYS_CREATE)
     {
       validate_addr (&args[1], f,2, sizeof (uint32_t * ));
       validate_addr ((char *) args[1], f, args[2], sizeof (char));
@@ -99,31 +99,31 @@ syscall_handler (struct intr_frame *f UNUSED)
       char *file = args[1];
       unsigned initial_size = args[2];
       f->eax = create (file, initial_size);
-      if (f->eax == -1) 
+      if (f->eax == -1)
         {
           syscall_exit (-1, f);
         }
-    } 
-  else if (args[0] == SYS_REMOVE) 
+    }
+  else if (args[0] == SYS_REMOVE)
     {
       validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
       char *file = args[1];
       f->eax = remove (file);
-    } 
-  else if (args[0] == SYS_OPEN) 
+    }
+  else if (args[0] == SYS_OPEN)
     {
       validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
       validate_addr ((void *) args[1], f,0, sizeof (uint32_t * ));
       char *file = args[1];
       f->eax = open (file);
-    } 
-  else if (args[0] == SYS_FILESIZE) 
+    }
+  else if (args[0] == SYS_FILESIZE)
     {
       validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
       int fd = args[1];
       f->eax = filesize (fd);
-    } 
-  else if (args[0] == SYS_READ) 
+    }
+  else if (args[0] == SYS_READ)
     {
       validate_addr (&args[1], f, 3, sizeof (uint32_t * ));
       validate_buff ((void *) args[2], f, args[3]);
@@ -131,8 +131,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       void * buff = args[2];
       size_t size = args[3];
       f->eax = read (fd, buff, size);
-    } 
-  else if (args[0] == SYS_WRITE) 
+    }
+  else if (args[0] == SYS_WRITE)
     {
       validate_addr (&args[1], f, 3, sizeof (uint32_t * ));
       validate_buff ((void *) args[2], f, args[3]);
@@ -140,21 +140,21 @@ syscall_handler (struct intr_frame *f UNUSED)
       void * buff = args[2];
       size_t size = args[3];
       f->eax = write (fd, buff, size);
-    } 
-  else if (args[0] == SYS_SEEK) 
+    }
+  else if (args[0] == SYS_SEEK)
     {
       validate_addr (&args[1], f, 2, sizeof (uint32_t * ));
       int fd = args[1];
       unsigned position = args[2];
       seek (fd, position);
-    } 
-  else if (args[0] == SYS_TELL) 
+    }
+  else if (args[0] == SYS_TELL)
     {
       validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
       int fd = args[1];
       f->eax = tell (fd);
-    } 
-  else if (args[0] == SYS_CLOSE) 
+    }
+  else if (args[0] == SYS_CLOSE)
     {
       validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
       int fd = args[1];
@@ -164,25 +164,25 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 /* Some helper functions. */
 
-/* create the fd-file mapping struct and add the mapping to 
+/* create the fd-file mapping struct and add the mapping to
    current thread's fd_list. */
-int 
+int
 add_file(struct file* file)
 {
   struct thread *cur_thread = thread_current ();
   int assigned = -1;
-  if (cur_thread->next_fd >= 40960) 
+  if (cur_thread->next_fd >= 40960)
     {
       cur_thread->next_fd = 3;
       assigned = 2;
     }
-  else 
+  else
     {
       assigned = cur_thread->next_fd;
       cur_thread->next_fd++;
     }
   struct fd_file_map* new_fd_map = malloc (sizeof (struct fd_file_map));
-  if (new_fd_map == NULL) 
+  if (new_fd_map == NULL)
     {
       return -1;
     }
@@ -192,9 +192,9 @@ add_file(struct file* file)
   return assigned;
 }
 
-/* remove the mapping struct according to fd in 
+/* remove the mapping struct according to fd in
    current thread's fd_list. */
-void 
+void
 remove_file(int fd)
 {
   struct thread *cur_thread = thread_current();
@@ -205,16 +205,16 @@ remove_file(int fd)
        e = list_next (e))
     {
       struct fd_file_map* cur_map = list_entry (e, struct fd_file_map, elem);
-      if (cur_map->fd == fd) 
+      if (cur_map->fd == fd)
         {
           list_remove (&cur_map->elem);
         }
     }
 }
 
-/* get the mapping struct according to fd from 
+/* get the mapping struct according to fd from
    current thread's fd_list */
-struct file* 
+struct file*
 get_file(int fd)
 {
   struct thread *cur_thread = thread_current();
@@ -225,7 +225,7 @@ get_file(int fd)
        e = list_next (e))
     {
       struct fd_file_map* cur_map = list_entry (e, struct fd_file_map, elem);
-      if (cur_map->fd == fd) 
+      if (cur_map->fd == fd)
         {
           return cur_map->file;
         }
@@ -234,10 +234,10 @@ get_file(int fd)
 }
 
 
-bool 
+bool
 create (const char *file, unsigned initial_size)
 {
-  if (file == NULL) 
+  if (file == NULL)
     {
       return 0;
     }
@@ -247,8 +247,8 @@ create (const char *file, unsigned initial_size)
   return success;
 };
 
-bool 
-remove (const char *file) 
+bool
+remove (const char *file)
 {
   lock_acquire (&filesys_lock);
   bool success = filesys_remove (file);
@@ -256,10 +256,10 @@ remove (const char *file)
   return success;
 };
 
-int 
-open (const char *file) 
+int
+open (const char *file)
 {
-  if (file == NULL) 
+  if (file == NULL)
     {
       return -1;
     }
@@ -270,7 +270,7 @@ open (const char *file)
     {
       fd = -1;
     }
-  else 
+  else
     {
       fd = add_file (opened);
     }
@@ -279,17 +279,17 @@ open (const char *file)
 
 };
 
-int 
-filesize (int fd) 
+int
+filesize (int fd)
 {
   lock_acquire (&filesys_lock);
   struct file* aim = get_file (fd);
   int size;
-  if (aim == NULL) 
+  if (aim == NULL)
     {
       size =  -1;
     }
-  else 
+  else
     {
       size = file_length (aim);
     }
@@ -298,28 +298,28 @@ filesize (int fd)
 
 };
 
-int 
-read (int fd, void *buffer, unsigned size) 
+int
+read (int fd, void *buffer, unsigned size)
 {
   lock_acquire (&filesys_lock);
   int num_bytes_read;
-  if (fd == 0) 
+  if (fd == 0)
     {
       int count = 0;
-      while (count < size) 
+      while (count < size)
         {
           *(uint8_t *) (buffer + count) = input_getc ();
         }
       num_bytes_read = count;
     }
-  else 
+  else
     {
       struct file * aim = get_file (fd);
-      if (aim == NULL) 
+      if (aim == NULL)
         {
           num_bytes_read = - 1;
         }
-      else 
+      else
         {
           num_bytes_read = file_read (aim, buffer, size);
         }
@@ -328,24 +328,24 @@ read (int fd, void *buffer, unsigned size)
   return num_bytes_read;
 };
 
-int 
+int
 write (int fd, const void *buffer, unsigned size)
 {
   lock_acquire (&filesys_lock);
   int num_bytes_written;
-  if (fd == 1) 
+  if (fd == 1)
     {
       putbuf (buffer, size);
       num_bytes_written = size;
     }
-  else 
+  else
     {
       struct file * aim = get_file (fd);
-      if (aim == NULL) 
+      if (aim == NULL)
         {
           num_bytes_written = - 1;
         }
-      else 
+      else
         {
           num_bytes_written = file_write (aim, buffer, size);
         }
@@ -354,29 +354,29 @@ write (int fd, const void *buffer, unsigned size)
   return num_bytes_written;
 }
 
-void 
-seek (int fd, unsigned position) 
+void
+seek (int fd, unsigned position)
 {
   lock_acquire (&filesys_lock);
   struct file * aim = get_file (fd);
-  if (aim != NULL) 
+  if (aim != NULL)
     {
       file_seek (aim, position);
     }
   lock_release (&filesys_lock);
 };
 
-unsigned 
-tell (int fd) 
+unsigned
+tell (int fd)
 {
   lock_acquire (&filesys_lock);
   struct file * aim = get_file (fd);
   unsigned told;
-  if (aim == NULL) 
+  if (aim == NULL)
     {
       thread_exit ();;
     }
-  else 
+  else
     {
       told = file_tell (aim);
     }
@@ -384,12 +384,12 @@ tell (int fd)
   return told;
 };
 
-void 
-close (int fd) 
+void
+close (int fd)
 {
   lock_acquire (&filesys_lock);
   struct file * aim = get_file (fd);
-  if (aim != NULL) 
+  if (aim != NULL)
     {
       file_close (aim);
       remove_file (fd);
