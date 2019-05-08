@@ -36,7 +36,7 @@ validate_path (char *path, struct inode **inode_ptr, char **file_name)
     if (path[0] == "/") {
       cur_inode = dir_get_inode(dir_open_root ());
     } else {
-      cur_inode = dir_get_inode(t->cur_dir);
+      cur_inode = t->cur_dir_inode;
     }
   }
 
@@ -60,14 +60,14 @@ validate_path (char *path, struct inode **inode_ptr, char **file_name)
           inode_close(cur_inode);
           cur_inode = next_inode;
         } else {
-          return 0;
+          return false;
         }
       }
     }
 
     *inode_ptr = cur_inode;
     *file_name = token;
-    return 1;
+    return true;
 }
 
 
@@ -87,6 +87,10 @@ filesys_init (bool format)
     do_format ();
 
   free_map_open ();
+
+  /* Load current directory for the startup thread */
+  thread_current()->cur_dir_inode = inode_open(ROOT_DIR_SECTOR);
+  thread_current()->cur_dir_inode->data.isdir = true;
 }
 
 /* Shuts down the file system module, writing any unwritten data

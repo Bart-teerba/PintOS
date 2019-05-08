@@ -115,9 +115,9 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
 #endif
 
-#ifdef FILESYS
-    struct dir *cur_dir;
-#endif
+
+    struct inode *cur_dir_inode;
+
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
