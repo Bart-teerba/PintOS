@@ -12,6 +12,52 @@ struct block *fs_device;
 
 static void do_format (void);
 
+bool
+validate_path (char *path, struct inode **inode_ptr, char **file_name)
+{
+  struct thread *t = thread_current ();
+  struct inode *cur_inode;
+  struct inode *next_inode;
+
+  if (strlen(path) > 0) {
+    if (path[0] == "/") {
+      cur_inode = dir_get_inode(dir_open_root ());
+    } else {
+      cur_inode = dir_get_inode(t->cur_dir);
+    }
+  }
+
+  char *token, *save_ptr;
+  for
+   (token = strtok_r (path, "/", &save_ptr); token != NULL;
+       token = strtok_r (NULL, "/", &save_ptr))
+    {
+      if (*save_ptr == '\0') {
+        break;
+      }
+      if (strcmp(token, ".") == 0) {
+        continue;
+      } else if (strcmp(token, "..") == 0) {
+        next_inode = inode_open(cur_inode->data.parent);
+        inode_close(cur_inode);
+        cur_inode = next_inode;
+      } else {
+        next_inode = filesys_open_helper (cur_inode, token);
+        if (next_inode != NULL && inode_isdir (next_inode)) {
+          inode_close(cur_inode);
+          cur_inode = next_inode;
+        } else {
+          return 0;
+        }
+      }
+    }
+
+    *inode_ptr = cur_inode;
+    *file_name = token;
+    return 1;
+}
+
+
 /* Initializes the file system module.
    If FORMAT is true, reformats the file system. */
 void
@@ -45,12 +91,25 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size)
 {
+
+  char path_temp[strlen(name) + 1];
+  char *path = &path_temp[0];
+  strlcpy (path, name, strlen(name) + 1);
+
+  struct inode *inode;
+  char *file_name;
+  validity = validate_path (path, &inode, &file_name);
+  if (validity == 0) {
+    return 0;
+  }
+
   block_sector_t inode_sector = 0;
-  struct dir *dir = dir_open_root ();
+  struct dir *dir = dir_open(inode);
+
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size)
-                  && dir_add (dir, name, inode_sector));
+                  && dir_add (dir, file_name, inode_sector));
   if (!success && inode_sector != 0)
     free_map_release (inode_sector, 1);
   dir_close (dir);
@@ -64,10 +123,10 @@ filesys_create (const char *name, off_t initial_size)
    Fails if no file named NAME exists,
    or if an internal memory allocation fails. */
 
-struct inode
-filesys_open_helper (const char *name)
+struct inode *
+filesys_open_helper (struct inode *inode_dir, const char *name)
    {
-     struct dir *dir = dir_open_root ();
+     struct dir *dir = dir_open(inode_dir);
      struct inode *inode = NULL;
 
      if (dir != NULL)
@@ -79,7 +138,20 @@ filesys_open_helper (const char *name)
 struct file *
 filesys_open (const char *name)
 {
-  return file_open (filesys_open_helper (name));
+  char path_temp[strlen(name) + 1];
+  char *path = &path_temp[0];
+  strlcpy (path, name, strlen(name) + 1);
+
+  struct inode *inode;
+  char *file_name;
+  validity = validate_path (path, &inode, &file_name);
+  if (validity == 0) {
+    return 0;
+  }
+
+  block_sector_t inode_sector = 0;
+
+  return file_open (filesys_open_helper (inode, file_name));
 }
 
 /* Deletes the file named NAME.
@@ -89,8 +161,21 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name)
 {
-  struct dir *dir = dir_open_root ();
-  bool success = dir != NULL && dir_remove (dir, name);
+  char path_temp[strlen(name) + 1];
+  char *path = &path_temp[0];
+  strlcpy (path, name, strlen(name) + 1);
+
+  struct inode *inode;
+  char *file_name;
+  validity = validate_path (path, &inode, &file_name);
+  if (validity == 0) {
+    return 0;
+  }
+
+  block_sector_t inode_sector = 0;
+  struct dir *dir = dir_open(inode);
+
+  bool success = dir != NULL && dir_remove (dir, file_name);
   dir_close (dir);
 
   return success;

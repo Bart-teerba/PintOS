@@ -92,6 +92,7 @@ struct wait_status {
 struct fd_file_map {
     int fd;
     struct file * file;
+    off_t offset;
     struct list_elem elem;
 };
 
