@@ -71,9 +71,9 @@ validate_path (char *path, struct inode **inode_ptr, char **file_name)
 
     *inode_ptr = cur_inode;
     *file_name = token;
-    // if (token == NULL) {
-    //   return false;
-    // }
+    if (token == NULL) {
+      *file_name = ".";
+    }
     return true;
 }
 
