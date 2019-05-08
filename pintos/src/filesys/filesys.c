@@ -19,8 +19,9 @@ filesys_open_helper (struct inode *inode_dir, char *name)
      struct dir *dir = dir_open(inode_dir);
      struct inode *inode = NULL;
 
-     if (dir != NULL)
+     if (dir != NULL) {
        dir_lookup (dir, name, &inode);
+     }
      dir_close (dir);
      return inode;
    }
@@ -34,10 +35,12 @@ validate_path (char *path, struct inode **inode_ptr, char **file_name)
 
   if (strlen(path) > 0) {
     if (path[0] == "/") {
-      cur_inode = dir_get_inode(dir_open_root ());
+      cur_inode = inode_open(ROOT_DIR_SECTOR);
     } else {
-      cur_inode = t->cur_dir_inode;
+      cur_inode = inode_reopen(t->cur_dir_inode);
     }
+  } else {
+    return false;
   }
 
   char *token, *save_ptr;
@@ -60,6 +63,7 @@ validate_path (char *path, struct inode **inode_ptr, char **file_name)
           inode_close(cur_inode);
           cur_inode = next_inode;
         } else {
+          inode_close(cur_inode);
           return false;
         }
       }
@@ -152,8 +156,8 @@ filesys_open (const char *name)
   struct inode *inode;
   char *file_name;
   bool validity = validate_path (path, &inode, &file_name);
-  if (validity == 0) {
-    return 0;
+  if (validity == false) {
+    return NULL;
   }
 
   return file_open (filesys_open_helper (inode, file_name));
