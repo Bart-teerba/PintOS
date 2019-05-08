@@ -108,6 +108,43 @@ filesys_done (void)
   free_map_close ();
 }
 
+/* Helper function for creating files/directories */
+static bool
+filesys_create_helper (const char *name, off_t initial_size, bool if_dir) {
+
+
+    char path_temp[strlen(name) + 1];
+    char *path = &path_temp[0];
+    strlcpy (path, name, strlen(name) + 1);
+
+    struct inode *inode;
+    char *file_name;
+    bool validity = validate_path (path, &inode, &file_name);
+    if (validity == 0) {
+      return false;
+    }
+
+    block_sector_t inode_sector = 0;
+    struct dir *dir = dir_open(inode);
+
+    bool success = (dir != NULL
+                    && free_map_allocate (1, &inode_sector)
+                    && inode_create (inode_sector, initial_size)
+                    && dir_add (dir, file_name, inode_sector));
+    if (!success && inode_sector != 0) {
+      free_map_release (inode_sector, 1);
+    } else {
+      struct inode_disk buffer;
+      block_read(fs_device, inode_sector, &buffer);
+      buffer.num_entries = 0;
+      buffer.isdir = if_dir;
+      block_write(fs_device, inode_sector, &buffer);
+    }
+    dir_close (dir);
+
+    return success;
+}
+
 /* Creates a file named NAME with the given INITIAL_SIZE.
    Returns true if successful, false otherwise.
    Fails if a file named NAME already exists,
@@ -115,30 +152,7 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size)
 {
-
-  char path_temp[strlen(name) + 1];
-  char *path = &path_temp[0];
-  strlcpy (path, name, strlen(name) + 1);
-
-  struct inode *inode;
-  char *file_name;
-  bool validity = validate_path (path, &inode, &file_name);
-  if (validity == 0) {
-    return 0;
-  }
-
-  block_sector_t inode_sector = 0;
-  struct dir *dir = dir_open(inode);
-
-  bool success = (dir != NULL
-                  && free_map_allocate (1, &inode_sector)
-                  && inode_create (inode_sector, initial_size)
-                  && dir_add (dir, file_name, inode_sector));
-  if (!success && inode_sector != 0)
-    free_map_release (inode_sector, 1);
-  dir_close (dir);
-
-  return success;
+  return filesys_create_helper(name, initial_size, false);
 }
 
 /* Opens the file with the given NAME.
@@ -180,8 +194,8 @@ filesys_remove (const char *name)
   struct inode *inode;
   char *file_name;
   bool validity = validate_path (path, &inode, &file_name);
-  if (validity == 0) {
-    return 0;
+  if (validity == false) {
+    return false;
   }
 
   struct dir *dir = dir_open(inode);
@@ -191,6 +205,41 @@ filesys_remove (const char *name)
 
   return success;
 }
+
+/* Change the current directory of the process.
+   If the path is not valid, return false. */
+bool
+filesys_chdir (const char *name)
+{
+  char path_temp[strlen(name) + 1];
+  char *path = &path_temp[0];
+  strlcpy (path, name, strlen(name) + 1);
+
+  struct inode *inode;
+  char *file_name;
+  bool validity = validate_path (path, &inode, &file_name);
+  if (validity == false) {
+    return false;
+  }
+
+  struct inode *new_inode = filesys_open_helper (inode, file_name);
+  inode_close(inode);
+  if (new_inode == NULL) {
+    return false;
+  }
+
+  struct thread *t = thread_current ();
+  inode_close(t->cur_dir_inode);
+  t->cur_dir_inode = new_inode;
+  return true;
+}
+
+bool
+filesys_mkdir (const char *name, off_t initial_size)
+{
+  return filesys_create_helper(name, initial_size, true);
+}
+
 
 /* Formats the file system. */
 static void

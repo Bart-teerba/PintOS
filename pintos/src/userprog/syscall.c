@@ -4,6 +4,9 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "filesys/file.h"
+#include "filesys/filesys.h"
+#include "filesys/inode.h"
 
 static void syscall_handler (struct intr_frame *);
 void syscall_init (void);
@@ -19,6 +22,7 @@ int write (int fd, const void *buffer, unsigned size);
 void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
+struct file* get_file(int fd);
 
 /* Add global lock. */
 struct lock filesys_lock;
@@ -159,6 +163,44 @@ syscall_handler (struct intr_frame *f UNUSED)
       validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
       int fd = args[1];
       close (fd);
+    }
+  else if (args[0] == SYS_CHDIR)
+    {
+      validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
+      char *dir_name = (char *) args[1];
+      f->eax = filesys_chdir (dir_name);
+    }
+  else if (args[0] == SYS_MKDIR)
+    {
+      validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
+      char *dir_name = (char *) args[1];
+      f->eax = filesys_mkdir (dir_name, 0);
+    }
+  else if (args[0] == SYS_READDIR)
+    {
+      validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
+      validate_addr (&args[2], f, 1, sizeof (uint32_t * ));
+      int fd = args[1];
+      struct file *file = get_file(fd);
+      struct inode *inode = file_get_inode(file);
+      // if (!inode_isdir(inode)) {
+      //   f->eax = NULL;
+      // }
+      struct dir *dir = dir_open(inode);
+      char * file_name = (char *) args[2];
+      f->eax = dir_readdir(dir, file_name);
+    }
+  else if (args[0] == SYS_ISDIR)
+    {
+      validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
+      int fd = args[1];
+      f->eax = inode_isdir(file_get_inode(get_file(fd)));
+    }
+  else if (args[0] == SYS_INUMBER)
+    {
+      validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
+      int fd = args[1];
+      f->eax = inode_get_inumber(file_get_inode(get_file(fd)));
     }
 }
 
