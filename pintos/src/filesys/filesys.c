@@ -33,12 +33,18 @@ validate_path (char *path, struct inode **inode_ptr, char **file_name)
   struct inode *cur_inode;
   struct inode *next_inode;
   if (strlen(path) > 0) {
+    // if (strcmp(path, ".") == 0 || strcmp(path, "..") == 0) {
+    //   return false;
+    // }
     if (path[0] == '/') {
       cur_inode = inode_open(ROOT_DIR_SECTOR);
     } else {
       cur_inode = inode_reopen(t->cur_dir_inode);
     }
   } else {
+    return false;
+  }
+  if (cur_inode->removed == true) {
     return false;
   }
 
@@ -66,6 +72,9 @@ validate_path (char *path, struct inode **inode_ptr, char **file_name)
           inode_close(cur_inode);
           return false;
         }
+      }
+      if (cur_inode->removed == true) {
+        return false;
       }
     }
 
