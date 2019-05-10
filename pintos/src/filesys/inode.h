@@ -19,18 +19,14 @@ struct inode_disk
   {
     block_sector_t start;               /* First data sector. */
     off_t length;                       /* File size in bytes. */
+    bool isdir;                         /* Indicates if it is a directory. */
     uint32_t num_entries;               /* The number of subdirectories or files. */
     block_sector_t parent;
     unsigned magic;                     /* Magic number. */
-    block_sector_t pointers[14];        /* 12 direct pointers, 1 indirect, 1 doubly indirect */
-    bool isdir;                         /* Indicates if it is a directory. */
-    char unused[439];               /* Not used. 512 - 4 * 18 - 1 =  439 */
+    uint32_t unused[122];               /* Not used. */
   };
 
-struct indirect_disk
-{
-  block_sector_t pointers[128];
-};
+
 /* In-memory inode. */
 struct inode
   {
