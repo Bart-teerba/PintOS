@@ -17,7 +17,7 @@
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
   {
-   // block_sector_t start;               /* First data sector. */
+    block_sector_t start;               /* First data sector. */
     off_t length;                       /* File size in bytes. */
     uint32_t num_entries;               /* The number of subdirectories or files. */
     block_sector_t parent;
