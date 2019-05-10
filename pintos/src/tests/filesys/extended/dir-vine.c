@@ -32,7 +32,6 @@ test_main (void)
       /* Create file. */
       snprintf (file_name, sizeof file_name, "file%d", i);
       if (!create (file_name, 0)) {
-        printf("1. file create fail\n");
         break;
       }
       CHECK ((fd = open (file_name)) > 1, "open \"%s\"", file_name);
@@ -41,7 +40,6 @@ test_main (void)
         {
           CHECK (remove (file_name), "remove \"%s\"", file_name);
           close (fd);
-          printf("2. write file fail\n");
           break;
         }
       close (fd);
@@ -51,7 +49,6 @@ test_main (void)
       if (!mkdir (dir_name))
         {
           CHECK (remove (file_name), "remove \"%s\"", file_name);
-          printf("3. make dir fail\n");
           break;
         }
 
