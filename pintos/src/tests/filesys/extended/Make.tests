@@ -1,6 +1,6 @@
 # -*- makefile -*-
 
-raw_tests = dir-empty-name dir-mk-tree dir-mkdir dir-open		\
+raw_tests = dir-empty-name dir-mk-tree my-dir-isdir my-dir-readdir dir-mkdir dir-open		\
 dir-over-file dir-rm-cwd dir-rm-parent dir-rm-root dir-rm-tree		\
 dir-rmdir dir-under-file dir-vine grow-create grow-dir-lg		\
 grow-file-size grow-root-lg grow-root-sm grow-seq-lg grow-seq-sm	\

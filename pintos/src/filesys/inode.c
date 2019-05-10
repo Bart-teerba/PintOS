@@ -35,10 +35,14 @@ static block_sector_t
 byte_to_sector (const struct inode *inode, off_t pos)
 {
   ASSERT (inode != NULL);
-  if (pos < inode->data.length)
+  // printf("%d, %d\n", pos, inode->data.length);
+  if (pos < inode->data.length) {
     return inode->data.start + pos / BLOCK_SECTOR_SIZE;
-  else
+  }
+  else {
     return -1;
+  }
+
 }
 
 /* List of open inodes, so that opening a single inode twice
@@ -196,6 +200,11 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
     {
       /* Disk sector to read, starting byte offset within sector. */
       block_sector_t sector_idx = byte_to_sector (inode, offset);
+
+      if (sector_idx == -1) {
+        return 0;
+      }
+
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
@@ -258,9 +267,9 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     {
       /* Sector to write, starting byte offset within sector. */
       block_sector_t sector_idx = byte_to_sector (inode, offset);
-      // if (sector_idx == -1) {
-      //   return 0;
-      // }
+      if (sector_idx == -1) {
+        return 0;
+      }
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */

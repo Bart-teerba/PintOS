@@ -180,18 +180,22 @@ syscall_handler (struct intr_frame *f UNUSED)
       validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
       char *dir_name = (char *) args[1];
       f->eax = mkdir (dir_name);
+      if (f->eax == -1)
+        {
+          syscall_exit (-1, f);
+        }
     }
   else if (args[0] == SYS_READDIR)
     {
       validate_addr (&args[1], f, 1, sizeof (uint32_t * ));
       validate_addr (&args[2], f, 1, sizeof (uint32_t * ));
       int fd = args[1];
-      struct file *file = get_file(fd);
-      struct inode *inode = file_get_inode(file);
-      // if (!inode_isdir(inode)) {
-      //   f->eax = NULL;
-      // }
-      struct dir *dir = dir_open(inode);
+      struct dir *dir = get_file(fd);
+      if (dir == NULL) {
+        struct file *file = get_file(fd);
+        struct inode *inode = file_get_inode(file);
+        dir = dir_open(inode);
+      }
       char * file_name = (char *) args[2];
       f->eax = dir_readdir(dir, file_name);
     }
@@ -298,7 +302,7 @@ mkdir (char *dir_name)
     }
   lock_acquire (&filesys_lock);
   // not sure if 100
-  bool success = filesys_mkdir (dir_name, 100);
+  bool success = filesys_mkdir (dir_name, 1024);
   lock_release (&filesys_lock);
   return success;
 }
